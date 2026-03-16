@@ -65,6 +65,8 @@ public class Cr02Form {
 
     // Tracker Fields
     private String familyNicNo;
+    private String deceasedName;
+    private String submittedByUsername;
     private String currentStage;
 
     private LocalDateTime submissionTimestamp;

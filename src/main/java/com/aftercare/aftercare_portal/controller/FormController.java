@@ -37,4 +37,14 @@ public class FormController {
         Cr02Form savedForm = formService.saveCr02Form(request);
         return ResponseEntity.ok(savedForm);
     }
+
+    @GetMapping("/cr02/{id}")
+    public ResponseEntity<?> getCr02ById(@PathVariable Long id) {
+        try {
+            Cr02Form form = formService.getCr02FormById(id);
+            return ResponseEntity.ok(form);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
 }

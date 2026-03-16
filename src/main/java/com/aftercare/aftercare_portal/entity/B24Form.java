@@ -60,6 +60,7 @@ public class B24Form {
     // Tracker Fields
     private String familyNicNo;
     private String assignedRegistrarUsername;
+    private String submittedByUsername;
     private String currentStage;
 
     private LocalDateTime submissionTimestamp;

@@ -42,6 +42,7 @@ public class FormService {
                 .informantAddress(dto.getB24InformantAddress())
                 .familyNicNo(dto.getB24FamilyNicNo())
                 .assignedRegistrarUsername(dto.getAssignedRegistrarUsername())
+                .submittedByUsername(dto.getSubmittedByUsername())
                 .build();
 
         return b24FormRepository.save(entity);
@@ -71,9 +72,23 @@ public class FormService {
                 .informantPhone(dto.getInformantPhone())
                 .informantEmail(dto.getInformantEmail())
                 .familyNicNo(dto.getCr02FamilyNicNo())
+                .deceasedName(dto.getDeceasedName())
+                .submittedByUsername(dto.getSubmittedByUsername())
+                .currentStage("SUBMITTED_BY_REGISTRAR")
                 .build();
 
-        return cr02FormRepository.save(entity);
+        Cr02Form saved = cr02FormRepository.save(entity);
+
+        // Mark matching B24 forms as COMPLETED
+        if (dto.getCr02FamilyNicNo() != null) {
+            List<B24Form> b24Forms = b24FormRepository.findByFamilyNicNo(dto.getCr02FamilyNicNo());
+            for (B24Form b24 : b24Forms) {
+                b24.setCurrentStage("COMPLETED");
+                b24FormRepository.save(b24);
+            }
+        }
+
+        return saved;
     }
 
     public B24Form getB24FormById(Long id) {
@@ -103,6 +118,17 @@ public class FormService {
             if (count > 0) {
                 messages.add("You have " + count + " forms approved and ready.");
             }
+        } else if ("GRAMA_NILADHARI".equalsIgnoreCase(role) || "GN".equalsIgnoreCase(role)) {
+            // GN can see how many of their submitted B24 forms have been reviewed
+            long reviewedCount = b24FormRepository.countByCurrentStage("REVIEW_BY_REGISTRAR");
+            long approvedCount = b24FormRepository.countByCurrentStage("APPROVED");
+            count = reviewedCount + approvedCount;
+            if (reviewedCount > 0) {
+                messages.add(reviewedCount + " B24 reports are under registrar review.");
+            }
+            if (approvedCount > 0) {
+                messages.add(approvedCount + " B24 reports have been approved.");
+            }
         }
 
         return NotificationDTO.builder()
@@ -124,7 +150,7 @@ public class FormService {
                     .updatedAt(form.getUpdatedAt() != null ? form.getUpdatedAt() : form.getCreatedAt())
                     .submittedAt(form.getSubmissionTimestamp() != null ? form.getSubmissionTimestamp()
                             : form.getCreatedAt())
-                    .deceasedName(form.getFullName())
+                    .record("B24 Report")
                     .build());
         }
 
@@ -137,11 +163,52 @@ public class FormService {
                     .updatedAt(form.getUpdatedAt() != null ? form.getUpdatedAt() : form.getCreatedAt())
                     .submittedAt(form.getSubmissionTimestamp() != null ? form.getSubmissionTimestamp()
                             : form.getCreatedAt())
-                    .deceasedName("CR02 Record")
+                    .record("CR02 Declaration")
                     .build());
         }
 
         trackingList.sort(Comparator.comparing(TrackingDTO::getUpdatedAt).reversed());
         return trackingList;
+    }
+
+    public Cr02Form getCr02FormById(Long id) {
+        return cr02FormRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("CR02 form not found with id: " + id));
+    }
+
+    public List<TrackingDTO> getGnHistory(String username) {
+        List<TrackingDTO> result = new ArrayList<>();
+        List<B24Form> forms = b24FormRepository.findBySubmittedByUsername(username);
+        for (B24Form form : forms) {
+            result.add(TrackingDTO.builder()
+                    .formId(form.getId())
+                    .formType("B24")
+                    .currentStage(form.getCurrentStage())
+                    .updatedAt(form.getUpdatedAt() != null ? form.getUpdatedAt() : form.getCreatedAt())
+                    .submittedAt(form.getSubmissionTimestamp() != null ? form.getSubmissionTimestamp()
+                            : form.getCreatedAt())
+                    .record("B24 Report")
+                    .build());
+        }
+        result.sort(Comparator.comparing(TrackingDTO::getSubmittedAt, Comparator.nullsLast(Comparator.reverseOrder())));
+        return result;
+    }
+
+    public List<TrackingDTO> getRegistrarHistory(String username) {
+        List<TrackingDTO> result = new ArrayList<>();
+        List<Cr02Form> forms = cr02FormRepository.findBySubmittedByUsername(username);
+        for (Cr02Form form : forms) {
+            result.add(TrackingDTO.builder()
+                    .formId(form.getId())
+                    .formType("CR02")
+                    .currentStage(form.getCurrentStage())
+                    .updatedAt(form.getUpdatedAt() != null ? form.getUpdatedAt() : form.getCreatedAt())
+                    .submittedAt(form.getSubmissionTimestamp() != null ? form.getSubmissionTimestamp()
+                            : form.getCreatedAt())
+                    .record("CR02 Declaration")
+                    .build());
+        }
+        result.sort(Comparator.comparing(TrackingDTO::getSubmittedAt, Comparator.nullsLast(Comparator.reverseOrder())));
+        return result;
     }
 }

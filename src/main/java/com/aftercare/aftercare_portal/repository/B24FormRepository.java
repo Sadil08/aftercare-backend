@@ -13,4 +13,5 @@ public interface B24FormRepository extends JpaRepository<B24Form, Long> {
     long countByCurrentStageAndAssignedRegistrarUsername(String currentStage, String assignedRegistrarUsername);
     List<B24Form> findByFamilyNicNo(String familyNicNo);
     List<B24Form> findByAssignedRegistrarUsernameAndCurrentStage(String assignedRegistrarUsername, String currentStage);
+    List<B24Form> findBySubmittedByUsername(String submittedByUsername);
 }

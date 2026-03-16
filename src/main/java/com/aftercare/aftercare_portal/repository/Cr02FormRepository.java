@@ -11,4 +11,5 @@ public interface Cr02FormRepository extends JpaRepository<Cr02Form, Long> {
     long countByCurrentStage(String currentStage);
     long countByCurrentStageAndFamilyNicNo(String currentStage, String familyNicNo);
     List<Cr02Form> findByFamilyNicNo(String familyNicNo);
+    List<Cr02Form> findBySubmittedByUsername(String submittedByUsername);
 }

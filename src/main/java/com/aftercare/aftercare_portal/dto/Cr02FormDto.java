@@ -42,4 +42,6 @@ public class Cr02FormDto {
 
     // Tracker Fields
     private String cr02FamilyNicNo;
+    private String deceasedName;
+    private String submittedByUsername;
 }

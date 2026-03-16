@@ -17,5 +17,5 @@ public class TrackingDTO {
     private String currentStage; // SUBMITTED_BY_GN, REVIEW_BY_REGISTRAR, APPROVED, READY_FOR_PICKUP
     private LocalDateTime updatedAt;
     private LocalDateTime submittedAt;
-    private String deceasedName;
+    private String record;
 }

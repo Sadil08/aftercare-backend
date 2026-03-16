@@ -38,4 +38,5 @@ public class B24FormDto {
     // Tracking
     private String b24FamilyNicNo;
     private String assignedRegistrarUsername;
+    private String submittedByUsername;
 }
