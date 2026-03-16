@@ -1,0 +1,92 @@
+﻿
+> boot.log:72:2026-03-
+16T15:29:25.811+05:30 
+ WARN 42616 --- 
+[aftercare-portal] [  
+         main] ConfigS
+ervletWebServerApplica
+tionContext : 
+Exception encountered 
+during context 
+initialization - 
+cancelling refresh 
+attempt: org.springfra
+mework.context.Applica
+tionContextException: 
+Failed to start bean 
+'webServerStartStop'
+  boot.log:73:2026-03-
+16T15:29:25.812+05:30 
+ INFO 42616 --- 
+[aftercare-portal] [  
+         main] j.Local
+ContainerEntityManager
+FactoryBean : Closing 
+JPA 
+EntityManagerFactory 
+for persistence unit 
+'default'
+  boot.log:74:2026-03-
+16T15:29:25.814+05:30 
+ INFO 42616 --- 
+[aftercare-portal] [  
+         main] com.zax
+xer.hikari.HikariDataS
+ource       : 
+HikariPool-1 - 
+Shutdown initiated...
+  boot.log:75:2026-03-
+16T15:29:25.815+05:30 
+ INFO 42616 --- 
+[aftercare-portal] [  
+         main] com.zax
+xer.hikari.HikariDataS
+ource       : 
+HikariPool-1 - 
+Shutdown completed.
+  boot.log:76:2026-03-
+16T15:29:25.824+05:30 
+ INFO 42616 --- 
+[aftercare-portal] [  
+         main] .s.b.a.
+l.ConditionEvaluationR
+eportLogger : 
+  boot.log:77:
+  boot.log:78:Error 
+starting 
+ApplicationContext. 
+To display the 
+condition evaluation 
+report re-run your 
+application with 
+'debug' enabled.
+  boot.log:79:2026-03-
+16T15:29:25.832+05:30 
+ERROR 42616 --- 
+[aftercare-portal] [  
+         main] o.s.b.d
+.LoggingFailureAnalysi
+sReporter   : 
+  boot.log:80:
+  boot.log:81:********
+*******************
+  boot.log:82:APPLICAT
+ION FAILED TO START
+  boot.log:83:********
+*******************
+  boot.log:84:
+  boot.log:85:Descript
+ion:
+  boot.log:86:
+  boot.log:87:Web 
+server failed to 
+start. Port 8080 was 
+already in use.
+> 
+boot.log:105:[ERROR] 
+[Help 1] http://cwiki.
+apache.org/confluence/
+display/MAVEN/MojoExec
+utionException
+
+
