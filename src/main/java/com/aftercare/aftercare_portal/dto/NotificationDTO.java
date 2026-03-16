@@ -14,4 +14,5 @@ import java.util.List;
 public class NotificationDTO {
     private int unreadCount;
     private List<String> messages;
+    private List<Long> formIds;
 }

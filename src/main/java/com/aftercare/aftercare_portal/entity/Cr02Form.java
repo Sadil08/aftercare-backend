@@ -22,7 +22,7 @@ public class Cr02Form {
     private Long id;
 
     // (1) Type of Death
-    private String typeOfDeath; // e.g. "normal", "sudden"
+    private String typeOfDeath;
 
     // (2) Date of Death
     private Integer deathYear;
@@ -36,10 +36,10 @@ public class Cr02Form {
     private String placeInSinhalaOrTamil;
     private String placeInEnglish;
     private String timeOfDeath;
-    private String deathLocation; // e.g. "hospital", "outside"
+    private String deathLocation;
 
     // (4) Cause Established?
-    private String causeEstablished; // "yes", "no"
+    private String causeEstablished;
 
     // (5) Cause of Death
     private String causeOfDeath;
@@ -51,32 +51,30 @@ public class Cr02Form {
     private String burialPlace;
 
     // Informant Details
-    // (24) Capacity
-    private String informantCapacity; // e.g., "husband_wife", "father_mother"
-    // (25) Identification
+    private String informantCapacity;
     private String informantId;
-    // (26) Name
     private String informantName;
-    // (27) Address
     private String informantAddress;
-    // (28) Contact
     private String informantPhone;
     private String informantEmail;
 
     @CreationTimestamp
     private LocalDateTime createdAt;
-    
+
     private LocalDateTime updatedAt;
 
     // Tracker Fields
-    private Long familyUserId;
-    private String currentStage; // e.g., SUBMITTED_BY_GN, REVIEW_BY_REGISTRAR, APPROVED, READY_FOR_PICKUP
+    private String familyNicNo;
+    private String currentStage;
+
+    private LocalDateTime submissionTimestamp;
 
     @PrePersist
     protected void onCreate() {
         if (currentStage == null) {
             currentStage = "SUBMITTED_BY_GN";
         }
+        submissionTimestamp = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
     }
 

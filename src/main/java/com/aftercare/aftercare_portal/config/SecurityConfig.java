@@ -38,11 +38,13 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints
-                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/b24").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/b24/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/cr02").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/notifications/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/tracking/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/users/registrars").permitAll()
 
                         // Case initiation — CITIZEN only
                         .requestMatchers(HttpMethod.POST, "/api/cases").hasRole("CITIZEN")

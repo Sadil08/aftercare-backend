@@ -34,6 +34,8 @@ public class B24FormDto {
     // 7
     private String b24InformantName;
     private String b24InformantAddress;
-    
-    private Long b24FamilyUserId;
+
+    // Tracking
+    private String b24FamilyNicNo;
+    private String assignedRegistrarUsername;
 }

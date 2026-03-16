@@ -24,18 +24,18 @@ class DeathCaseTest {
     void setUp() {
         sector = new Sector("SEC-01", "Colombo 1", "Colombo");
 
-        citizen = new User("123456789V", "Citizen Name", "hash", "0711111111");
+        citizen = new User("citizen1", "citizen@test.com", "Citizen Name", "hash", "0711111111", "123456789V");
         citizen.grantRole(Role.CITIZEN);
 
-        gn = new User("GN123", "GN Name", "hash", "0712222222");
+        gn = new User("gn1", "gn@test.com", "GN Name", "hash", "0712222222", "GN123");
         gn.grantRole(Role.GN);
         gn.assignSector(sector);
 
-        doctor = new User("DOC123", "Doctor Name", "hash", "0713333333");
+        doctor = new User("doctor1", "doctor@test.com", "Doctor Name", "hash", "0713333333", "DOC123");
         doctor.grantRole(Role.DOCTOR);
         doctor.assignSector(sector);
 
-        registrar = new User("REG123", "Registrar Name", "hash", "0714444444");
+        registrar = new User("registrar1", "registrar@test.com", "Registrar Name", "hash", "0714444444", "REG123");
         registrar.grantRole(Role.REGISTRAR);
         registrar.assignSector(sector);
 
@@ -72,7 +72,7 @@ class DeathCaseTest {
 
     @Test
     void testCitizenInitializationRequiresCitizenRole() {
-        User outsider = new User("999", "Outsider", "hash", "0710000000"); // No roles
+        User outsider = new User("outsider1", "outsider@test.com", "Outsider", "hash", "0710000000", "999"); // No roles
         assertThrows(SecurityException.class, () -> new DeathCase(outsider, deceased, sector));
     }
 
@@ -116,7 +116,7 @@ class DeathCaseTest {
         deathCase.issueB24(gn, "hash1", true, true);
         deathCase.issueB12(doctor, "hash2", "I21.9", "Heart Attack");
 
-        User otherCitizen = new User("1111", "Other Citizen", "hash", "0711");
+        User otherCitizen = new User("other1", "other@test.com", "Other Citizen", "hash", "0711", "1111");
         otherCitizen.grantRole(Role.CITIZEN);
         setEntityId(otherCitizen, 99L);
 

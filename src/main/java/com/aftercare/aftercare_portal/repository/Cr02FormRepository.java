@@ -9,6 +9,6 @@ import java.util.List;
 @Repository
 public interface Cr02FormRepository extends JpaRepository<Cr02Form, Long> {
     long countByCurrentStage(String currentStage);
-    long countByCurrentStageAndFamilyUserId(String currentStage, Long familyUserId);
-    List<Cr02Form> findByFamilyUserId(Long familyUserId);
+    long countByCurrentStageAndFamilyNicNo(String currentStage, String familyNicNo);
+    List<Cr02Form> findByFamilyNicNo(String familyNicNo);
 }

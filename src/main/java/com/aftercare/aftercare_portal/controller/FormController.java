@@ -22,6 +22,16 @@ public class FormController {
         return ResponseEntity.ok(savedForm);
     }
 
+    @GetMapping("/b24/{id}")
+    public ResponseEntity<?> getB24ById(@PathVariable Long id) {
+        try {
+            B24Form form = formService.getB24FormById(id);
+            return ResponseEntity.ok(form);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @PostMapping("/cr02")
     public ResponseEntity<Cr02Form> submitCr02(@RequestBody Cr02FormDto request) {
         Cr02Form savedForm = formService.saveCr02Form(request);

@@ -5,7 +5,7 @@ import lombok.Data;
 @Data
 public class Cr02FormDto {
     private String typeOfDeath;
-    
+
     // 2
     private Integer deathYear;
     private Integer deathMonth;
@@ -39,7 +39,7 @@ public class Cr02FormDto {
     private String informantAddress;
     private String informantPhone;
     private String informantEmail;
-    
+
     // Tracker Fields
-    private Long cr02FamilyUserId;
+    private String cr02FamilyNicNo;
 }

@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+
 @Service
 @RequiredArgsConstructor
 public class FormService {
@@ -39,9 +40,10 @@ public class FormService {
                 .causeOfDeath(dto.getB24CauseOfDeath())
                 .informantName(dto.getB24InformantName())
                 .informantAddress(dto.getB24InformantAddress())
-                .familyUserId(dto.getB24FamilyUserId())
+                .familyNicNo(dto.getB24FamilyNicNo())
+                .assignedRegistrarUsername(dto.getAssignedRegistrarUsername())
                 .build();
-        
+
         return b24FormRepository.save(entity);
     }
 
@@ -68,65 +70,77 @@ public class FormService {
                 .informantAddress(dto.getInformantAddress())
                 .informantPhone(dto.getInformantPhone())
                 .informantEmail(dto.getInformantEmail())
-                .familyUserId(dto.getCr02FamilyUserId())
+                .familyNicNo(dto.getCr02FamilyNicNo())
                 .build();
-                
+
         return cr02FormRepository.save(entity);
     }
 
-    public NotificationDTO getUnreadNotifications(Long userId, String role) {
+    public B24Form getB24FormById(Long id) {
+        return b24FormRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("B24 form not found with id: " + id));
+    }
+
+    public NotificationDTO getUnreadNotifications(String username, String nicNo, String role) {
         long count = 0;
         List<String> messages = new ArrayList<>();
+        List<Long> formIds = new ArrayList<>();
 
         if ("REGISTRAR".equalsIgnoreCase(role)) {
-            long b24Count = b24FormRepository.countByCurrentStage("SUBMITTED_BY_GN");
-            long cr02Count = cr02FormRepository.countByCurrentStage("SUBMITTED_BY_GN");
-            count = b24Count + cr02Count;
-            if (count > 0) {
-                messages.add("You have " + count + " new forms pending review.");
+            // Registrar sees B24 forms assigned to them
+            List<B24Form> pendingForms = b24FormRepository
+                    .findByAssignedRegistrarUsernameAndCurrentStage(username, "SUBMITTED_BY_GN");
+            count = pendingForms.size();
+            for (B24Form form : pendingForms) {
+                formIds.add(form.getId());
+                messages.add("B24 Report for " + (form.getFullName() != null ? form.getFullName() : "Unknown")
+                        + " is pending review.");
             }
-        } else if ("FAMILY".equalsIgnoreCase(role)) {
-            long b24Count = b24FormRepository.countByCurrentStageAndFamilyUserId("APPROVED", userId);
-            long cr02Count = cr02FormRepository.countByCurrentStageAndFamilyUserId("APPROVED", userId);
+        } else if ("FAMILY".equalsIgnoreCase(role) && nicNo != null) {
+            long b24Count = b24FormRepository.countByCurrentStageAndFamilyNicNo("APPROVED", nicNo);
+            long cr02Count = cr02FormRepository.countByCurrentStageAndFamilyNicNo("APPROVED", nicNo);
             count = b24Count + cr02Count;
             if (count > 0) {
                 messages.add("You have " + count + " forms approved and ready.");
             }
         }
-        
+
         return NotificationDTO.builder()
                 .unreadCount((int) count)
                 .messages(messages)
+                .formIds(formIds)
                 .build();
     }
 
-    public List<TrackingDTO> getTrackingInfo(Long familyUserId) {
+    public List<TrackingDTO> getTrackingInfo(String familyNicNo) {
         List<TrackingDTO> trackingList = new ArrayList<>();
-        
-        List<B24Form> b24Forms = b24FormRepository.findByFamilyUserId(familyUserId);
+
+        List<B24Form> b24Forms = b24FormRepository.findByFamilyNicNo(familyNicNo);
         for (B24Form form : b24Forms) {
             trackingList.add(TrackingDTO.builder()
                     .formId(form.getId())
                     .formType("B24")
                     .currentStage(form.getCurrentStage())
                     .updatedAt(form.getUpdatedAt() != null ? form.getUpdatedAt() : form.getCreatedAt())
-                    .submittedAt(form.getCreatedAt())
+                    .submittedAt(form.getSubmissionTimestamp() != null ? form.getSubmissionTimestamp()
+                            : form.getCreatedAt())
                     .deceasedName(form.getFullName())
                     .build());
         }
 
-        List<Cr02Form> cr02Forms = cr02FormRepository.findByFamilyUserId(familyUserId);
+        List<Cr02Form> cr02Forms = cr02FormRepository.findByFamilyNicNo(familyNicNo);
         for (Cr02Form form : cr02Forms) {
             trackingList.add(TrackingDTO.builder()
                     .formId(form.getId())
                     .formType("CR02")
                     .currentStage(form.getCurrentStage())
                     .updatedAt(form.getUpdatedAt() != null ? form.getUpdatedAt() : form.getCreatedAt())
-                    .submittedAt(form.getCreatedAt())
-                    .deceasedName("CR02 Record") 
+                    .submittedAt(form.getSubmissionTimestamp() != null ? form.getSubmissionTimestamp()
+                            : form.getCreatedAt())
+                    .deceasedName("CR02 Record")
                     .build());
         }
-        
+
         trackingList.sort(Comparator.comparing(TrackingDTO::getUpdatedAt).reversed());
         return trackingList;
     }

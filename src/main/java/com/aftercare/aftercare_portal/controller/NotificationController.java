@@ -18,10 +18,11 @@ public class NotificationController {
 
     @GetMapping("/unread")
     public ResponseEntity<NotificationDTO> getUnreadNotifications(
-            @RequestParam Long userId, 
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String nicNo,
             @RequestParam String role) {
-        
-        NotificationDTO notifications = formService.getUnreadNotifications(userId, role);
+
+        NotificationDTO notifications = formService.getUnreadNotifications(username, nicNo, role);
         return ResponseEntity.ok(notifications);
     }
 }

@@ -54,18 +54,22 @@ public class B24Form {
 
     @CreationTimestamp
     private LocalDateTime createdAt;
-    
+
     private LocalDateTime updatedAt;
 
     // Tracker Fields
-    private Long familyUserId;
-    private String currentStage; // e.g., SUBMITTED_BY_GN, REVIEW_BY_REGISTRAR, APPROVED, READY_FOR_PICKUP
+    private String familyNicNo;
+    private String assignedRegistrarUsername;
+    private String currentStage;
+
+    private LocalDateTime submissionTimestamp;
 
     @PrePersist
     protected void onCreate() {
         if (currentStage == null) {
             currentStage = "SUBMITTED_BY_GN";
         }
+        submissionTimestamp = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
     }
 

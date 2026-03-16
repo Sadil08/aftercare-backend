@@ -18,9 +18,9 @@ public class TrackingController {
 
     private final FormService formService;
 
-    @GetMapping("/{familyUserId}")
-    public ResponseEntity<List<TrackingDTO>> getTrackingInfo(@PathVariable Long familyUserId) {
-        List<TrackingDTO> trackingInfo = formService.getTrackingInfo(familyUserId);
+    @GetMapping("/nic/{familyNicNo}")
+    public ResponseEntity<List<TrackingDTO>> getTrackingInfo(@PathVariable String familyNicNo) {
+        List<TrackingDTO> trackingInfo = formService.getTrackingInfo(familyNicNo);
         return ResponseEntity.ok(trackingInfo);
     }
 }

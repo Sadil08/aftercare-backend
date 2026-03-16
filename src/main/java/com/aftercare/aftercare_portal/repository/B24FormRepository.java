@@ -9,6 +9,8 @@ import java.util.List;
 @Repository
 public interface B24FormRepository extends JpaRepository<B24Form, Long> {
     long countByCurrentStage(String currentStage);
-    long countByCurrentStageAndFamilyUserId(String currentStage, Long familyUserId);
-    List<B24Form> findByFamilyUserId(Long familyUserId);
+    long countByCurrentStageAndFamilyNicNo(String currentStage, String familyNicNo);
+    long countByCurrentStageAndAssignedRegistrarUsername(String currentStage, String assignedRegistrarUsername);
+    List<B24Form> findByFamilyNicNo(String familyNicNo);
+    List<B24Form> findByAssignedRegistrarUsernameAndCurrentStage(String assignedRegistrarUsername, String currentStage);
 }
