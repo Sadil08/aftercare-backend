@@ -151,6 +151,7 @@ public class FormService {
                     .submittedAt(form.getSubmissionTimestamp() != null ? form.getSubmissionTimestamp()
                             : form.getCreatedAt())
                     .record("B24 Report")
+                    .deceasedName(form.getFullName())
                     .build());
         }
 
@@ -164,6 +165,7 @@ public class FormService {
                     .submittedAt(form.getSubmissionTimestamp() != null ? form.getSubmissionTimestamp()
                             : form.getCreatedAt())
                     .record("CR02 Declaration")
+                    .deceasedName(form.getDeceasedName())
                     .build());
         }
 

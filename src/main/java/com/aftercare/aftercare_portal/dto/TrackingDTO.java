@@ -18,4 +18,5 @@ public class TrackingDTO {
     private LocalDateTime updatedAt;
     private LocalDateTime submittedAt;
     private String record;
+    private String deceasedName;
 }
