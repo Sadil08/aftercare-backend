@@ -95,7 +95,7 @@ public class DeathCaseController {
     // Helper
     private User getUser(Authentication auth) {
         String nic = auth.getName();
-        return userRepository.findByNic(nic)
+        return userRepository.findByNicNo(nic)
                 .orElseThrow(() -> new SecurityException("Authenticated user not found."));
     }
 }

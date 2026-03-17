@@ -1,0 +1,116 @@
+[INFO] Error stacktraces are turned on.
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] -------------------< com.aftercare:aftercare-portal >-------------------
+[INFO] Building aftercare-portal 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.5.0:clean (default-clean) @ aftercare-portal ---
+[INFO] Deleting C:\Users\monis\aftercare-backend\target
+[INFO] 
+[INFO] >>> spring-boot:4.0.3:run (default-cli) > test-compile @ aftercare-portal >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ aftercare-portal ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ aftercare-portal ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 52 source files with javac [debug parameters release 25] to target\classes
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by lombok.permit.Permit
+WARNING: Please consider reporting this to the maintainers of class lombok.permit.Permit
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ aftercare-portal ---
+[INFO] Copying 1 resource from src\test\resources to target\test-classes
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ aftercare-portal ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 2 source files with javac [debug parameters release 25] to target\test-classes
+[INFO] 
+[INFO] <<< spring-boot:4.0.3:run (default-cli) < test-compile @ aftercare-portal <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:4.0.3:run (default-cli) @ aftercare-portal ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.3)
+
+2026-03-16T22:14:27.015+05:30  INFO 3308 --- [aftercare-portal] [           main] c.a.a.AftercarePortalApplication         : Starting AftercarePortalApplication using Java 25.0.2 with PID 3308 (C:\Users\monis\aftercare-backend\target\classes started by monis in C:\Users\monis\aftercare-backend)
+2026-03-16T22:14:27.017+05:30 DEBUG 3308 --- [aftercare-portal] [           main] c.a.a.AftercarePortalApplication         : Running with Spring Boot v4.0.3, Spring v7.0.5
+2026-03-16T22:14:27.023+05:30  INFO 3308 --- [aftercare-portal] [           main] c.a.a.AftercarePortalApplication         : No active profile set, falling back to 1 default profile: "default"
+2026-03-16T22:14:27.571+05:30  INFO 3308 --- [aftercare-portal] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-03-16T22:14:27.631+05:30  INFO 3308 --- [aftercare-portal] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 53 ms. Found 6 JPA repository interfaces.
+2026-03-16T22:14:28.017+05:30  INFO 3308 --- [aftercare-portal] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-03-16T22:14:28.026+05:30  INFO 3308 --- [aftercare-portal] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-03-16T22:14:28.027+05:30  INFO 3308 --- [aftercare-portal] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.18]
+2026-03-16T22:14:28.071+05:30  INFO 3308 --- [aftercare-portal] [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1008 ms
+2026-03-16T22:14:28.170+05:30  INFO 3308 --- [aftercare-portal] [           main] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-03-16T22:14:28.205+05:30  INFO 3308 --- [aftercare-portal] [           main] org.hibernate.orm.core                   : HHH000001: Hibernate ORM core version 7.2.4.Final
+2026-03-16T22:14:28.545+05:30  INFO 3308 --- [aftercare-portal] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-03-16T22:14:28.570+05:30  INFO 3308 --- [aftercare-portal] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-03-16T22:14:28.740+05:30  INFO 3308 --- [aftercare-portal] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@67784537
+2026-03-16T22:14:28.741+05:30  INFO 3308 --- [aftercare-portal] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-03-16T22:14:28.763+05:30  WARN 3308 --- [aftercare-portal] [           main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-03-16T22:14:28.783+05:30  INFO 3308 --- [aftercare-portal] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://localhost:5432/aftercare_db]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 18.3
+	Default catalog/schema: aftercare_db/public
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-03-16T22:14:29.734+05:30  INFO 3308 --- [aftercare-portal] [           main] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-03-16T22:14:29.809+05:30  INFO 3308 --- [aftercare-portal] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-03-16T22:14:29.850+05:30  INFO 3308 --- [aftercare-portal] [           main] o.s.d.j.r.query.QueryEnhancerFactories   : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-03-16T22:14:30.267+05:30 DEBUG 3308 --- [aftercare-portal] [           main] c.a.a.security.JwtAuthenticationFilter   : Filter 'jwtAuthenticationFilter' configured for use
+2026-03-16T22:14:30.314+05:30  INFO 3308 --- [aftercare-portal] [           main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name customUserDetailsService
+2026-03-16T22:14:30.423+05:30  WARN 3308 --- [aftercare-portal] [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-03-16T22:14:30.756+05:30  INFO 3308 --- [aftercare-portal] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-03-16T22:14:30.759+05:30  INFO 3308 --- [aftercare-portal] [           main] c.a.a.AftercarePortalApplication         : Started AftercarePortalApplication in 4.048 seconds (process running for 4.363)
+2026-03-16T22:14:40.195+05:30  INFO 3308 --- [aftercare-portal] [nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-03-16T22:14:40.196+05:30  INFO 3308 --- [aftercare-portal] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-03-16T22:14:40.197+05:30  INFO 3308 --- [aftercare-portal] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
+Hibernate: 
+    select
+        bf1_0.id,
+        bf1_0.age,
+        bf1_0.assigned_registrar_username,
+        bf1_0.cause_of_death,
+        bf1_0.created_at,
+        bf1_0.current_stage,
+        bf1_0.death_day,
+        bf1_0.death_month,
+        bf1_0.death_year,
+        bf1_0.family_nic_no,
+        bf1_0.full_name,
+        bf1_0.grama_division,
+        bf1_0.informant_address,
+        bf1_0.informant_name,
+        bf1_0.place_of_death,
+        bf1_0.profession,
+        bf1_0.race,
+        bf1_0.registrar_division,
+        bf1_0.serial_no,
+        bf1_0.sex,
+        bf1_0.submission_timestamp,
+        bf1_0.submitted_by_username,
+        bf1_0.updated_at 
+    from
+        b24_forms bf1_0 
+    where
+        bf1_0.assigned_registrar_username=? 
+        and bf1_0.current_stage=?

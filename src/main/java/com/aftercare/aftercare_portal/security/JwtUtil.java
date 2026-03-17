@@ -23,12 +23,12 @@ public class JwtUtil {
         this.expirationMs = expirationMs;
     }
 
-    public String generateToken(Long userId, String nic, String roles, String sectorCode) {
+    public String generateToken(Long userId, String username, String roles, String sectorCode) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
-                .subject(nic)
+                .subject(username)
                 .claims(Map.of(
                         "userId", userId,
                         "roles", roles,
@@ -47,7 +47,7 @@ public class JwtUtil {
                 .getPayload();
     }
 
-    public String extractNic(String token) {
+    public String extractUsername(String token) {
         return extractClaims(token).getSubject();
     }
 

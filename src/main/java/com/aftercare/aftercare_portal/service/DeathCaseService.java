@@ -75,7 +75,7 @@ public class DeathCaseService {
             throw new SecurityException("You can only verify cases in your assigned sector.");
         }
 
-        String payload = caseId + actingGN.getNic() + request.identityVerified() + request.residenceVerified();
+        String payload = caseId + actingGN.getNicNo() + request.identityVerified() + request.residenceVerified();
         String hash = hashService.computeHash(payload);
 
         deathCase.issueB24(actingGN, hash, request.identityVerified(), request.residenceVerified());
@@ -89,7 +89,7 @@ public class DeathCaseService {
     public CaseResponse issueB12(Long caseId, User actingDoctor, IssueB12Request request) {
         DeathCase deathCase = getCaseForVerification(caseId);
 
-        String payload = caseId + actingDoctor.getNic() + request.icd10Code() + request.primaryCause();
+        String payload = caseId + actingDoctor.getNicNo() + request.icd10Code() + request.primaryCause();
         String hash = hashService.computeHash(payload);
 
         deathCase.issueB12(actingDoctor, hash, request.icd10Code(), request.primaryCause());
@@ -103,7 +103,7 @@ public class DeathCaseService {
     public CaseResponse submitB11(Long caseId, User actingCitizen, SubmitB11Request request) {
         DeathCase deathCase = getCaseForVerification(caseId);
 
-        String payload = caseId + actingCitizen.getNic() + request.relationship() + request.declarationTrue();
+        String payload = caseId + actingCitizen.getNicNo() + request.relationship() + request.declarationTrue();
         String hash = hashService.computeHash(payload);
 
         deathCase.submitB11(actingCitizen, hash, request.relationship());
@@ -122,7 +122,7 @@ public class DeathCaseService {
 
         String serialNumber = generateSerialNumber(deathCase.getSector(), deathCase.getCreatedAt().getYear());
 
-        String payload = caseId + actingRegistrar.getNic() + serialNumber;
+        String payload = caseId + actingRegistrar.getNicNo() + serialNumber;
         String hash = hashService.computeHash(payload);
 
         deathCase.issueB2(actingRegistrar, hash, serialNumber);
@@ -204,7 +204,7 @@ public class DeathCaseService {
                 dc.getId(),
                 dc.getStatus().name(),
                 dc.getApplicantFamilyMember().getFullName(),
-                dc.getApplicantFamilyMember().getNic(),
+                dc.getApplicantFamilyMember().getNicNo(),
                 dc.getDeceased().getFullName(),
                 dc.getDeceased().getNic(),
                 dc.getDeceased().getDateOfDeath(),

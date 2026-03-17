@@ -38,22 +38,23 @@ public class AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        if (userRepository.existsByNic(request.nic())) {
-            throw new IllegalArgumentException("A user with this NIC already exists.");
+        if (userRepository.existsByUsername(request.username())) {
+            throw new IllegalArgumentException("A user with this username already exists.");
+        }
+        if (userRepository.existsByEmail(request.email())) {
+            throw new IllegalArgumentException("A user with this email already exists.");
         }
 
         User user = new User(
-                request.nic(),
+                request.username(),
+                request.email(),
                 request.fullName(),
                 passwordEncoder.encode(request.password()),
-                request.phone());
+                request.phone(),
+                request.nicNo());
 
-        if (request.email() != null) {
-            user.setEmail(request.email());
-        }
-
-        // Assign role — default to CITIZEN
-        Role role = Role.CITIZEN;
+        // Assign role — default to FAMILY
+        Role role = Role.FAMILY;
         if (request.role() != null && !request.role().isBlank()) {
             try {
                 role = Role.valueOf(request.role().toUpperCase());
@@ -74,21 +75,23 @@ public class AuthService {
 
         String sectorCode = user.getSector() != null ? user.getSector().getCode() : null;
         String rolesStr = user.getRoles().stream().map(Enum::name).collect(Collectors.joining(","));
-        String token = jwtUtil.generateToken(user.getId(), user.getNic(), rolesStr, sectorCode);
+        String token = jwtUtil.generateToken(user.getId(), user.getUsername(), rolesStr, sectorCode);
 
         return new AuthResponse(
                 token,
                 user.getId(),
-                user.getNic(),
+                user.getUsername(),
+                user.getEmail(),
                 user.getFullName(),
+                user.getNicNo(),
                 user.getRoles().stream().map(Enum::name).collect(Collectors.toSet()));
     }
 
     public AuthResponse login(LoginRequest request) {
         authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.nic(), request.password()));
+                new UsernamePasswordAuthenticationToken(request.username(), request.password()));
 
-        User user = userRepository.findByNic(request.nic())
+        User user = userRepository.findByUsername(request.username())
                 .orElseThrow(() -> new IllegalArgumentException("User not found."));
 
         if (user.isLocked()) {
@@ -97,13 +100,15 @@ public class AuthService {
 
         String sectorCode = user.getSector() != null ? user.getSector().getCode() : null;
         String rolesStr = user.getRoles().stream().map(Enum::name).collect(Collectors.joining(","));
-        String token = jwtUtil.generateToken(user.getId(), user.getNic(), rolesStr, sectorCode);
+        String token = jwtUtil.generateToken(user.getId(), user.getUsername(), rolesStr, sectorCode);
 
         return new AuthResponse(
                 token,
                 user.getId(),
-                user.getNic(),
+                user.getUsername(),
+                user.getEmail(),
                 user.getFullName(),
+                user.getNicNo(),
                 user.getRoles().stream().map(Enum::name).collect(Collectors.toSet()));
     }
 }

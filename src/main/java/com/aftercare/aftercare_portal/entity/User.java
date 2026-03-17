@@ -20,7 +20,10 @@ public class User {
     private Long id;
 
     @Column(unique = true, nullable = false)
-    private String nic;
+    private String username;
+
+    @Column(unique = true)
+    private String nicNo;
 
     @Column(nullable = false)
     private String fullName;
@@ -29,6 +32,8 @@ public class User {
     private String passwordHash;
 
     private String phone;
+
+    @Column(unique = true, nullable = false)
     private String email;
 
     @ElementCollection(fetch = FetchType.EAGER)
@@ -47,11 +52,13 @@ public class User {
     @Column(nullable = false)
     private boolean locked = false;
 
-    public User(String nic, String fullName, String passwordHash, String phone) {
-        this.nic = nic;
+    public User(String username, String email, String fullName, String passwordHash, String phone, String nicNo) {
+        this.username = username;
+        this.email = email;
         this.fullName = fullName;
         this.passwordHash = passwordHash;
         this.phone = phone;
+        this.nicNo = nicNo;
     }
 
     public void grantRole(Role role) {
@@ -64,6 +71,10 @@ public class User {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
     }
 
     public void lock() {
