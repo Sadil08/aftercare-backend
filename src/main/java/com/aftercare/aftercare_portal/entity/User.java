@@ -22,7 +22,7 @@ public class User {
     @Column(unique = true, nullable = false)
     private String username;
 
-    @Column(unique = true)
+    @Column(name = "nic", unique = true, nullable = false)
     private String nicNo;
 
     @Column(nullable = false)

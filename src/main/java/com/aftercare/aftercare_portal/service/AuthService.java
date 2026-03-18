@@ -62,6 +62,13 @@ public class AuthService {
                 throw new IllegalArgumentException("Invalid role: " + request.role());
             }
         }
+
+        // Block self-registration for official roles (these are seeded by the system)
+        if (role == Role.GRAMA_NILADHARI || role == Role.REGISTRAR || role == Role.DOCTOR) {
+            throw new IllegalArgumentException(
+                    "Official accounts (Grama Niladhari, Registrar, Doctor) cannot be registered through the platform.");
+        }
+
         user.grantRole(role);
 
         // Assign sector for GN/DOCTOR

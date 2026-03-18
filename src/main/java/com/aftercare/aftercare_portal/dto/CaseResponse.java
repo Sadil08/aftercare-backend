@@ -21,9 +21,9 @@ public record CaseResponse(
         String sectorCode,
         String sectorName,
 
-        // Documents (null if not yet issued)
-        Map<String, Object> formB24,
+        // Documents in flow order (null if not yet issued)
         Map<String, Object> formB12,
+        Map<String, Object> formB24,
         Map<String, Object> formB11,
         Map<String, Object> formB2,
 

@@ -13,13 +13,17 @@ import lombok.AccessLevel;
 public class FormB12 extends OfficialDocument {
 
     @Column(nullable = false)
+    private boolean naturalDeath;
+
+    @Column(nullable = false)
     private String icd10Code;
 
     @Column(nullable = false)
     private String primaryCause;
 
-    public FormB12(User issuedBy, String hash, String icd10Code, String primaryCause) {
+    public FormB12(User issuedBy, String hash, boolean naturalDeath, String icd10Code, String primaryCause) {
         super(issuedBy, hash);
+        this.naturalDeath = naturalDeath;
         this.icd10Code = icd10Code;
         this.primaryCause = primaryCause;
     }
