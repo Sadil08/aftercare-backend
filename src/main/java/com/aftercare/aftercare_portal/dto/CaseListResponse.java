@@ -7,6 +7,8 @@ public record CaseListResponse(
         String status,
         String deceasedFullName,
         String deceasedNic,
+        String applicantFullName,
+        String causeOfDeath,
         String sectorName,
         LocalDateTime createdAt,
         LocalDateTime updatedAt) {

@@ -37,7 +37,7 @@ public class DeathCaseController {
 
     // ──── F04: Issue B-24 ────
     @PostMapping("/{caseId}/b24")
-    public ResponseEntity<CaseResponse> issueB24(@PathVariable Long caseId, @Valid @RequestBody IssueB24Request request,
+    public ResponseEntity<CaseResponse> issueB24(@PathVariable(name = "caseId") Long caseId, @Valid @RequestBody IssueB24Request request,
             Authentication auth) {
         User GN = getUser(auth);
         CaseResponse response = deathCaseService.issueB24(caseId, GN, request);
@@ -46,27 +46,27 @@ public class DeathCaseController {
 
     // ──── F05: Issue B-12 ────
     @PostMapping("/{caseId}/b12")
-    public ResponseEntity<CaseResponse> issueB12(@PathVariable Long caseId, @Valid @RequestBody IssueB12Request request,
+    public ResponseEntity<CaseResponse> issueB12(@PathVariable(name = "caseId") Long caseId, @Valid @RequestBody IssueB12Request request,
             Authentication auth) {
         User doctor = getUser(auth);
         CaseResponse response = deathCaseService.issueB12(caseId, doctor, request);
         return ResponseEntity.ok(response);
     }
 
-    // ──── F06: Submit B-11 ────
-    @PostMapping("/{caseId}/b11")
-    public ResponseEntity<CaseResponse> submitB11(@PathVariable Long caseId,
-            @Valid @RequestBody SubmitB11Request request, Authentication auth) {
+    // ──── F06: Submit CR-2 (Family Part) ────
+    @PostMapping("/{caseId}/cr2/family")
+    public ResponseEntity<CaseResponse> submitCr2Family(@PathVariable(name = "caseId") Long caseId,
+            @Valid @RequestBody SubmitCr2FamilyRequest request, Authentication auth) {
         User applicant = getUser(auth);
-        CaseResponse response = deathCaseService.submitB11(caseId, applicant, request);
+        CaseResponse response = deathCaseService.submitCr2Family(caseId, applicant, request);
         return ResponseEntity.ok(response);
     }
 
-    // ──── F07: Issue B-2 ────
-    @PostMapping("/{caseId}/b2")
-    public ResponseEntity<CaseResponse> issueB2(@PathVariable Long caseId, Authentication auth) {
+    // ──── F07: Issue CR-2 ────
+    @PostMapping("/{caseId}/cr2")
+    public ResponseEntity<CaseResponse> issueCr2(@PathVariable(name = "caseId") Long caseId, Authentication auth) {
         User registrar = getUser(auth);
-        CaseResponse response = deathCaseService.issueB2(caseId, registrar);
+        CaseResponse response = deathCaseService.issueCr2(caseId, registrar);
         return ResponseEntity.ok(response);
     }
 
@@ -74,9 +74,9 @@ public class DeathCaseController {
 
     @GetMapping
     public ResponseEntity<Page<CaseListResponse>> getCases(
-            @RequestParam(required = false) DeathCaseStatus status,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(name = "status", required = false) DeathCaseStatus status,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "20") int size,
             Authentication auth) {
 
         User user = getUser(auth);
@@ -86,16 +86,26 @@ public class DeathCaseController {
     }
 
     @GetMapping("/{caseId}")
-    public ResponseEntity<CaseResponse> getCaseDetail(@PathVariable Long caseId, Authentication auth) {
+    public ResponseEntity<CaseResponse> getCaseDetail(@PathVariable(name = "caseId") Long caseId, Authentication auth) {
         User user = getUser(auth);
         CaseResponse response = deathCaseService.getCaseDetail(caseId, user);
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/active/{familyNic}")
+    public ResponseEntity<CaseResponse> getActiveCaseByFamilyNic(@PathVariable(name = "familyNic") String familyNic) {
+        try {
+            CaseResponse response = deathCaseService.getActiveCaseByFamilyNic(familyNic);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     // Helper
     private User getUser(Authentication auth) {
-        String nic = auth.getName();
-        return userRepository.findByNicNo(nic)
+        String username = auth.getName();
+        return userRepository.findByUsername(username)
                 .orElseThrow(() -> new SecurityException("Authenticated user not found."));
     }
 }

@@ -2,9 +2,9 @@ package com.aftercare.aftercare_portal.service;
 
 import com.aftercare.aftercare_portal.dto.*;
 import com.aftercare.aftercare_portal.entity.*;
-import com.aftercare.aftercare_portal.entity.document.FormB11;
+import com.aftercare.aftercare_portal.entity.document.FormCR2FamilyInfo;
 import com.aftercare.aftercare_portal.entity.document.FormB12;
-import com.aftercare.aftercare_portal.entity.document.FormB2;
+import com.aftercare.aftercare_portal.entity.document.FormCR2;
 import com.aftercare.aftercare_portal.entity.document.FormB24;
 import com.aftercare.aftercare_portal.enums.DeathCaseStatus;
 import com.aftercare.aftercare_portal.enums.Role;
@@ -17,8 +17,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.Map;
 
 @Service
@@ -37,11 +35,11 @@ public class DeathCaseService {
         this.hashService = hashService;
     }
 
-    // ──── Feature 03: Initiate Case ────
+    // ──── Phase 1: Family Initiates Case ────
     @Transactional
     public CaseResponse createCase(User applicant, CreateCaseRequest request) {
-        if (!applicant.getRoles().contains(Role.CITIZEN)) {
-            throw new SecurityException("Only citizens can initiate a case.");
+        if (!applicant.getRoles().contains(Role.FAMILY)) {
+            throw new SecurityException("Only family members can initiate a case.");
         }
 
         if (request.deceasedNic() != null && deceasedRepository.existsByNic(request.deceasedNic())) {
@@ -66,10 +64,25 @@ public class DeathCaseService {
         return mapToResponse(deathCase);
     }
 
-    // ──── Feature 04: GN Issues B-24 ────
+    // ──── Phase 2: Doctor Issues B-12 (Medical Certification) ────
+    @Transactional
+    public CaseResponse issueB12(Long caseId, User actingDoctor, IssueB12Request request) {
+        DeathCase deathCase = getCaseById(caseId);
+
+        String payload = caseId + actingDoctor.getNicNo() + request.naturalDeath() + request.icd10Code()
+                + request.primaryCause();
+        String hash = hashService.computeHash(payload);
+
+        deathCase.issueB12(actingDoctor, hash, request.naturalDeath(), request.icd10Code(), request.primaryCause());
+        deathCase = deathCaseRepository.save(deathCase);
+
+        return mapToResponse(deathCase);
+    }
+
+    // ──── Phase 3: GN Issues B-24 (Identity & Residence Verification) ────
     @Transactional
     public CaseResponse issueB24(Long caseId, User actingGN, IssueB24Request request) {
-        DeathCase deathCase = getCaseForVerification(caseId);
+        DeathCase deathCase = getCaseById(caseId);
 
         if (!actingGN.getSector().getId().equals(deathCase.getSector().getId())) {
             throw new SecurityException("You can only verify cases in your assigned sector.");
@@ -84,40 +97,26 @@ public class DeathCaseService {
         return mapToResponse(deathCase);
     }
 
-    // ──── Feature 05: Doctor Issues B-12 ────
+    // ──── Phase 4: Family Submits CR-2 (Declaration) ────
     @Transactional
-    public CaseResponse issueB12(Long caseId, User actingDoctor, IssueB12Request request) {
-        DeathCase deathCase = getCaseForVerification(caseId);
+    public CaseResponse submitCr2Family(Long caseId, User actingCitizen, SubmitCr2FamilyRequest request) {
+        DeathCase deathCase = getCaseById(caseId);
 
-        String payload = caseId + actingDoctor.getNicNo() + request.icd10Code() + request.primaryCause();
+        String payload = caseId + actingCitizen.getNicNo() + request.cr2FormData();
         String hash = hashService.computeHash(payload);
 
-        deathCase.issueB12(actingDoctor, hash, request.icd10Code(), request.primaryCause());
+        deathCase.submitCr2Family(actingCitizen, hash, request.cr2FormData());
         deathCase = deathCaseRepository.save(deathCase);
 
         return mapToResponse(deathCase);
     }
 
-    // ──── Feature 06: Family Submits B-11 ────
+    // ──── Phase 5: Registrar Issues CR-2 (Death Certificate) ────
     @Transactional
-    public CaseResponse submitB11(Long caseId, User actingCitizen, SubmitB11Request request) {
-        DeathCase deathCase = getCaseForVerification(caseId);
+    public CaseResponse issueCr2(Long caseId, User actingRegistrar) {
+        DeathCase deathCase = getCaseById(caseId);
 
-        String payload = caseId + actingCitizen.getNicNo() + request.relationship() + request.declarationTrue();
-        String hash = hashService.computeHash(payload);
-
-        deathCase.submitB11(actingCitizen, hash, request.relationship());
-        deathCase = deathCaseRepository.save(deathCase);
-
-        return mapToResponse(deathCase);
-    }
-
-    // ──── Feature 07: Registrar Issues B-2 ────
-    @Transactional
-    public CaseResponse issueB2(Long caseId, User actingRegistrar) {
-        DeathCase deathCase = getCaseForVerification(caseId);
-
-        // Re-verify hashes
+        // Re-verify document integrity
         verifyDocumentIntegrity(deathCase);
 
         String serialNumber = generateSerialNumber(deathCase.getSector(), deathCase.getCreatedAt().getYear());
@@ -125,24 +124,25 @@ public class DeathCaseService {
         String payload = caseId + actingRegistrar.getNicNo() + serialNumber;
         String hash = hashService.computeHash(payload);
 
-        deathCase.issueB2(actingRegistrar, hash, serialNumber);
+        deathCase.issueCr2(actingRegistrar, hash, serialNumber);
         deathCase = deathCaseRepository.save(deathCase);
 
         return mapToResponse(deathCase);
     }
 
-    // ──── Feature 08: Case Tracking ────
+    // ──── Case Tracking ────
 
     @Transactional(readOnly = true)
     public CaseResponse getCaseDetail(Long caseId, User user) {
-        DeathCase deathCase = getCaseForVerification(caseId);
+        DeathCase deathCase = getCaseById(caseId);
 
         // RBAC check for viewing
-        if (user.getRoles().contains(Role.CITIZEN)
+        if (user.getRoles().contains(Role.FAMILY)
                 && !deathCase.getApplicantFamilyMember().getId().equals(user.getId())) {
             throw new SecurityException("You can only view your own cases.");
         }
-        if (user.getRoles().contains(Role.GN) && !deathCase.getSector().getId().equals(user.getSector().getId())) {
+        if (user.getRoles().contains(Role.GRAMA_NILADHARI)
+                && !deathCase.getSector().getId().equals(user.getSector().getId())) {
             throw new SecurityException("You can only view cases in your sector.");
         }
 
@@ -151,50 +151,52 @@ public class DeathCaseService {
 
     @Transactional(readOnly = true)
     public Page<CaseListResponse> getCasesForUser(User user, DeathCaseStatus status, Pageable pageable) {
-        if (user.getRoles().contains(Role.CITIZEN)) {
+        if (user.getRoles().contains(Role.FAMILY)) {
             return deathCaseRepository.findByApplicantFamilyMember(user, pageable)
                     .map(this::mapToListResponse);
-        } else if (user.getRoles().contains(Role.GN)) {
+        } else if (user.getRoles().contains(Role.GRAMA_NILADHARI)) {
             if (status != null) {
                 return deathCaseRepository.findByStatusAndSector(status, user.getSector(), pageable)
                         .map(this::mapToListResponse);
             }
             return deathCaseRepository
-                    .findByStatusAndSector(DeathCaseStatus.GN_VERIFICATION_PENDING, user.getSector(), pageable)
+                    .findByStatusAndSector(DeathCaseStatus.PENDING_B24_GN, user.getSector(), pageable)
                     .map(this::mapToListResponse);
+        } else if (user.getRoles().contains(Role.DOCTOR)) {
+            DeathCaseStatus targetStatus = (status != null) ? status : DeathCaseStatus.PENDING_B12_MEDICAL;
+            return deathCaseRepository.findByStatus(targetStatus, pageable).map(this::mapToListResponse);
         } else {
-            // DOCTOR, REGISTRAR
-            if (status != null) {
-                return deathCaseRepository.findByStatus(status, pageable).map(this::mapToListResponse);
-            }
-            // Default views if no status specified
-            DeathCaseStatus defaultStatus = user.getRoles().contains(Role.DOCTOR)
-                    ? DeathCaseStatus.MEDICAL_VERIFICATION_PENDING
-                    : DeathCaseStatus.REGISTRAR_REVIEW;
-            return deathCaseRepository.findByStatus(defaultStatus, pageable).map(this::mapToListResponse);
+            // REGISTRAR
+            DeathCaseStatus targetStatus = (status != null) ? status : DeathCaseStatus.PENDING_REGISTRAR_REVIEW;
+            return deathCaseRepository.findByStatus(targetStatus, pageable).map(this::mapToListResponse);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public CaseResponse getActiveCaseByFamilyNic(String familyNic) {
+        DeathCase dc = deathCaseRepository.findFirstByApplicantFamilyMember_NicNoOrderByCreatedAtDesc(familyNic)
+                .orElseThrow(() -> new EntityNotFoundException("No active death case found for family NIC: " + familyNic));
+        return mapToResponse(dc);
     }
 
     // ──── Private Helpers ────
 
-    private DeathCase getCaseForVerification(Long caseId) {
+    private DeathCase getCaseById(Long caseId) {
         return deathCaseRepository.findById(caseId)
                 .orElseThrow(() -> new EntityNotFoundException("DeathCase not found: " + caseId));
     }
 
     private void verifyDocumentIntegrity(DeathCase dc) {
-        // In a real system, we'd recalculate the hash from the payload.
-        // For MVP, we just ensure they exist and have a hash.
-        if (dc.getFormB24() == null || dc.getFormB24().getCryptographicHash() == null)
-            throw new SecurityException("B-24 missing or tampered");
         if (dc.getFormB12() == null || dc.getFormB12().getCryptographicHash() == null)
             throw new SecurityException("B-12 missing or tampered");
-        if (dc.getFormB11() == null || dc.getFormB11().getCryptographicHash() == null)
-            throw new SecurityException("B-11 missing or tampered");
+        if (dc.getFormB24() == null || dc.getFormB24().getCryptographicHash() == null)
+            throw new SecurityException("B-24 missing or tampered");
+        // CR-2 Family Info is only present for new-flow cases; legacy B-11 cases won't have it
+        if (dc.getFormCr2FamilyInfo() != null && dc.getFormCr2FamilyInfo().getCryptographicHash() == null)
+            throw new SecurityException("CR-2 Family Info tampered");
     }
 
     private String generateSerialNumber(Sector sector, int year) {
-        // E.g., B2-2026-COL-168345
         long count = deathCaseRepository.count() + 1;
         return String.format("B2-%d-%s-%06d", year, sector.getDistrict().substring(0, 3).toUpperCase(), count);
     }
@@ -212,23 +214,38 @@ public class DeathCaseService {
                 dc.getDeceased().getAddress(),
                 dc.getSector().getCode(),
                 dc.getSector().getName(),
-                mapB24(dc.getFormB24()),
                 mapB12(dc.getFormB12()),
-                mapB11(dc.getFormB11()),
-                mapB2(dc.getFormB2()),
+                mapB24(dc.getFormB24()),
+                mapCr2Family(dc.getFormCr2FamilyInfo()),
+                mapCr2(dc.getFormCr2()),
                 dc.getCreatedAt(),
                 dc.getUpdatedAt());
     }
 
     private CaseListResponse mapToListResponse(DeathCase dc) {
+        String cause = dc.getFormB12() != null ? dc.getFormB12().getPrimaryCause() : null;
         return new CaseListResponse(
                 dc.getId(),
                 dc.getStatus().name(),
                 dc.getDeceased().getFullName(),
                 dc.getDeceased().getNic(),
+                dc.getApplicantFamilyMember() != null ? dc.getApplicantFamilyMember().getFullName() : null,
+                cause,
                 dc.getSector().getName(),
                 dc.getCreatedAt(),
                 dc.getUpdatedAt());
+    }
+
+    private Map<String, Object> mapB12(FormB12 b12) {
+        if (b12 == null)
+            return null;
+        return Map.of(
+                "documentType", b12.getDocumentType(),
+                "issuedAt", b12.getIssuedAt(),
+                "issuedBy", b12.getIssuedBy().getFullName(),
+                "naturalDeath", b12.isNaturalDeath(),
+                "icd10Code", b12.getIcd10Code(),
+                "primaryCause", b12.getPrimaryCause());
     }
 
     private Map<String, Object> mapB24(FormB24 b24) {
@@ -242,35 +259,23 @@ public class DeathCaseService {
                 "residenceVerified", b24.isResidenceVerified());
     }
 
-    private Map<String, Object> mapB12(FormB12 b12) {
-        if (b12 == null)
+    private Map<String, Object> mapCr2Family(FormCR2FamilyInfo info) {
+        if (info == null)
             return null;
         return Map.of(
-                "documentType", b12.getDocumentType(),
-                "issuedAt", b12.getIssuedAt(),
-                "issuedBy", b12.getIssuedBy().getFullName(),
-                "icd10Code", b12.getIcd10Code(),
-                "primaryCause", b12.getPrimaryCause());
+                "documentType", info.getDocumentType(),
+                "issuedAt", info.getIssuedAt(),
+                "issuedBy", info.getIssuedBy().getFullName(),
+                "cr2FormData", info.getCr2FormData());
     }
 
-    private Map<String, Object> mapB11(FormB11 b11) {
-        if (b11 == null)
+    private Map<String, Object> mapCr2(FormCR2 cr2) {
+        if (cr2 == null)
             return null;
         return Map.of(
-                "documentType", b11.getDocumentType(),
-                "issuedAt", b11.getIssuedAt(),
-                "issuedBy", b11.getIssuedBy().getFullName(),
-                "applicantRelationship", b11.getApplicantRelationship(),
-                "declarationTrue", b11.isDeclarationTrue());
-    }
-
-    private Map<String, Object> mapB2(FormB2 b2) {
-        if (b2 == null)
-            return null;
-        return Map.of(
-                "documentType", b2.getDocumentType(),
-                "issuedAt", b2.getIssuedAt(),
-                "issuedBy", b2.getIssuedBy().getFullName(),
-                "certificateSerialNumber", b2.getCertificateSerialNumber());
+                "documentType", cr2.getDocumentType(),
+                "issuedAt", cr2.getIssuedAt(),
+                "issuedBy", cr2.getIssuedBy().getFullName(),
+                "certificateSerialNumber", cr2.getCertificateSerialNumber());
     }
 }
