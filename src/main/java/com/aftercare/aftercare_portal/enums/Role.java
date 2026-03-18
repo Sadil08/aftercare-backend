@@ -6,5 +6,6 @@ public enum Role {
     CITIZEN,
     GN,
     DOCTOR,
-    REGISTRAR
+    REGISTRAR,
+    CEMETERY
 }

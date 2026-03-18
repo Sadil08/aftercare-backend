@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "death_cases")
-@Getter
+@Getter 
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class DeathCase {
 
