@@ -41,6 +41,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/**").permitAll()
                         // Case endpoints require authentication
                         .requestMatchers("/api/cases/**").authenticated()
+                        // Cemetery endpoints
+                        .requestMatchers("/api/cemeteries/**").hasRole("FAMILY")
+                        .requestMatchers("/api/cemetery-owner/**").hasRole("CEMETERY")
                         // Everything else requires authentication
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

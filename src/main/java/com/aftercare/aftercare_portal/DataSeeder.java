@@ -60,6 +60,15 @@ public class DataSeeder implements CommandLineRunner {
         seedUser("reg_colombo01", "reg.colombo01@gov.lk", "Anura Bandara",
                 "Reg@12345", "0718765432", "199056781234",
                 Role.REGISTRAR, colomboSector);
+
+        // ── Seed Cemetery users ──
+        seedUser("cem_kandy01", "cem.kandy01@gov.lk", "Mahaiyawa Cemetery Owner",
+                "Cem@12345", "0721111111", "198011111111",
+                Role.CEMETERY, kandySector);
+
+        seedUser("cem_colombo01", "cem.colombo01@gov.lk", "Kanatte Cemetery Owner",
+                "Cem@12345", "0722222222", "198022222222",
+                Role.CEMETERY, colomboSector);
     }
 
     private void seedUser(String username, String email, String fullName,
