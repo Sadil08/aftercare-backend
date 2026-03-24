@@ -27,6 +27,14 @@ public interface DeathCaseRepository extends JpaRepository<DeathCase, Long> {
     // Search by deceased NIC
     Optional<DeathCase> findByDeceased_Nic(String nic);
 
+    // Search by applicant NIC (for auto-fill in FormService)
+    Optional<DeathCase> findFirstByApplicantFamilyMember_NicNoOrderByCreatedAtDesc(String nicNo);
+
     // All cases in a sector (for GN dashboard)
     List<DeathCase> findBySector(Sector sector);
+
+    // Counts for Notifications
+    long countByStatus(DeathCaseStatus status);
+    long countByStatusAndSector(DeathCaseStatus status, Sector sector);
+    long countByApplicantFamilyMemberAndStatus(User applicant, DeathCaseStatus status);
 }

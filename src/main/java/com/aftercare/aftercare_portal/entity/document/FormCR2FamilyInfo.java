@@ -7,21 +7,21 @@ import lombok.NoArgsConstructor;
 import lombok.AccessLevel;
 
 @Entity
-@Table(name = "form_b2")
+@Table(name = "form_cr2_family_info")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class FormB2 extends OfficialDocument {
+public class FormCR2FamilyInfo extends OfficialDocument {
 
-    @Column(unique = true, nullable = false)
-    private String certificateSerialNumber;
+    @Column(columnDefinition = "TEXT", nullable = false)
+    private String cr2FormData;
 
-    public FormB2(User issuedBy, String hash, String serialNumber) {
+    public FormCR2FamilyInfo(User issuedBy, String hash, String cr2FormData) {
         super(issuedBy, hash);
-        this.certificateSerialNumber = serialNumber;
+        this.cr2FormData = cr2FormData;
     }
 
     @Override
     public String getDocumentType() {
-        return "B-2_DEATH_CERTIFICATE";
+        return "CR-2_FAMILY_DECLARATION";
     }
 }

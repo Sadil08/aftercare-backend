@@ -37,20 +37,20 @@ public class DeathCase {
     private DeathCaseStatus status;
 
     @OneToOne(cascade = CascadeType.ALL)
-    @JoinColumn(name = "form_b24_id")
-    private FormB24 formB24;
-
-    @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "form_b12_id")
     private FormB12 formB12;
 
     @OneToOne(cascade = CascadeType.ALL)
-    @JoinColumn(name = "form_b11_id")
-    private FormB11 formB11;
+    @JoinColumn(name = "form_b24_id")
+    private FormB24 formB24;
 
     @OneToOne(cascade = CascadeType.ALL)
-    @JoinColumn(name = "form_b2_id")
-    private FormB2 formB2;
+    @JoinColumn(name = "form_cr2_family_id")
+    private FormCR2FamilyInfo formCr2FamilyInfo;
+
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "form_cr2_id")
+    private FormCR2 formCr2;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
@@ -60,58 +60,82 @@ public class DeathCase {
     // ──── Constructor ────
 
     public DeathCase(User applicant, Deceased deceased, Sector sector) {
-        if (!applicant.getRoles().contains(Role.CITIZEN)) {
-            throw new SecurityException("Initiator must have CITIZEN role.");
+        if (!applicant.getRoles().contains(Role.FAMILY)) {
+            throw new SecurityException("Initiator must have FAMILY role.");
         }
+
+        // Validate Date of Death >= Date of Birth
+        if (deceased.getDateOfBirth() != null && deceased.getDateOfDeath() != null
+                && deceased.getDateOfDeath().isBefore(deceased.getDateOfBirth())) {
+            throw new IllegalArgumentException("Date of death cannot be before date of birth.");
+        }
+
         this.applicantFamilyMember = applicant;
         this.deceased = deceased;
         this.sector = sector;
-        this.status = DeathCaseStatus.GN_VERIFICATION_PENDING;
+        this.status = DeathCaseStatus.PENDING_B12_MEDICAL;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = this.createdAt;
     }
 
-    // ──── State Machine Methods ────
+    // ──── State Machine Methods (order matches diagrams) ────
 
-    public void issueB24(User actingGN, String signatureHash, boolean identityVerified, boolean residenceVerified) {
-        requireStatus(DeathCaseStatus.GN_VERIFICATION_PENDING);
-        requireRole(actingGN, Role.GN, "Only a GN can issue a B-24.");
-
-        this.formB24 = new FormB24(actingGN, signatureHash, identityVerified, residenceVerified);
-        this.status = DeathCaseStatus.MEDICAL_VERIFICATION_PENDING;
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    public void issueB12(User actingDoctor, String signatureHash, String icd10Code, String primaryCause) {
-        requireStatus(DeathCaseStatus.MEDICAL_VERIFICATION_PENDING);
+    // Step 2: Doctor issues B-12 (Medical Certification)
+    public void issueB12(User actingDoctor, String signatureHash,
+                         boolean naturalDeath, String icd10Code, String primaryCause) {
+        requireStatus(DeathCaseStatus.PENDING_B12_MEDICAL);
         requireRole(actingDoctor, Role.DOCTOR, "Only a Doctor can issue a B-12.");
 
-        this.formB12 = new FormB12(actingDoctor, signatureHash, icd10Code, primaryCause);
-        this.status = DeathCaseStatus.FAMILY_DECLARATION_PENDING;
+        this.formB12 = new FormB12(actingDoctor, signatureHash, naturalDeath, icd10Code, primaryCause);
+        
+        if (!naturalDeath) {
+            this.status = DeathCaseStatus.REJECTED_UNNATURAL_DEATH;
+        } else {
+            this.status = DeathCaseStatus.PENDING_B24_GN;
+        }
+        
         this.updatedAt = LocalDateTime.now();
     }
 
-    public void submitB11(User actingCitizen, String signatureHash, String relationship) {
-        requireStatus(DeathCaseStatus.FAMILY_DECLARATION_PENDING);
-        if (!actingCitizen.getId().equals(this.applicantFamilyMember.getId())) {
-            throw new SecurityException("Only the original applicant can submit the B-11.");
-        }
+    // Step 3: GN issues B-24 (Identity & Residence Verification)
+    public void issueB24(User actingGN, String signatureHash,
+                         boolean identityVerified, boolean residenceVerified) {
+        requireStatus(DeathCaseStatus.PENDING_B24_GN);
+        requireRole(actingGN, Role.GRAMA_NILADHARI, "Only a Grama Niladhari can issue a B-24.");
 
-        this.formB11 = new FormB11(actingCitizen, signatureHash, relationship, true);
-        this.status = DeathCaseStatus.REGISTRAR_REVIEW;
+        this.formB24 = new FormB24(actingGN, signatureHash, identityVerified, residenceVerified);
+        this.status = DeathCaseStatus.PENDING_CR2_FAMILY;
         this.updatedAt = LocalDateTime.now();
     }
 
-    public void issueB2(User actingRegistrar, String signatureHash, String serialNumber) {
-        requireStatus(DeathCaseStatus.REGISTRAR_REVIEW);
-        requireRole(actingRegistrar, Role.REGISTRAR, "Only a Registrar can issue a B-2.");
-
-        if (this.formB24 == null || this.formB12 == null || this.formB11 == null) {
-            throw new IllegalStateException("Cannot issue B-2: missing predecessor documents.");
+    // Step 4: Family submits CR-2 Data (Declaration)
+    public void submitCr2Family(User actingFamilyMember, String signatureHash, String cr2FormData) {
+        requireStatus(DeathCaseStatus.PENDING_CR2_FAMILY);
+        if (!actingFamilyMember.getId().equals(this.applicantFamilyMember.getId())) {
+            throw new SecurityException("Only the original applicant can submit the CR-2 Declaration.");
         }
 
-        this.formB2 = new FormB2(actingRegistrar, signatureHash, serialNumber);
-        this.status = DeathCaseStatus.B2_ISSUED_CLOSED;
+        this.formCr2FamilyInfo = new FormCR2FamilyInfo(actingFamilyMember, signatureHash, cr2FormData);
+        this.status = DeathCaseStatus.PENDING_REGISTRAR_REVIEW;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    // Step 5: Registrar issues CR-2 (Death Certificate)
+    public void issueCr2(User actingRegistrar, String signatureHash, String serialNumber) {
+        requireStatus(DeathCaseStatus.PENDING_REGISTRAR_REVIEW);
+        requireRole(actingRegistrar, Role.REGISTRAR, "Only a Registrar can issue a CR-2.");
+
+        if (this.formB12 == null || this.formB24 == null) {
+            throw new IllegalStateException("Cannot issue CR-2: missing predecessor documents (B-12 or B-24).");
+        }
+
+        // Registrar must verify identity was confirmed by GN
+        if (!this.formB24.isIdentityVerified()) {
+            throw new IllegalStateException("Cannot issue CR-2: identity was not verified by GN.");
+        }
+
+        this.formCr2 = new FormCR2(actingRegistrar, signatureHash, serialNumber);
+        this.status = DeathCaseStatus.CR2_ISSUED_CLOSED;
         this.updatedAt = LocalDateTime.now();
     }
 
