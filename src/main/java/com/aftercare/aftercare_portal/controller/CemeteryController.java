@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -82,7 +83,7 @@ public class CemeteryController {
 
     @PostMapping("/cemeteries/{id}/bookings")
     @PreAuthorize("hasRole('FAMILY')")
-    public ResponseEntity<String> createBooking(@PathVariable("id") Long cemeteryId,
+    public ResponseEntity<Map<String, String>> createBooking(@PathVariable("id") Long cemeteryId,
                                                 @RequestBody CreateBookingRequest request,
                                                 Authentication authentication) {
         User cemeteryOwner = userRepository.findById(cemeteryId).orElseThrow(() -> new IllegalArgumentException("Cemetery not found"));
@@ -90,7 +91,7 @@ public class CemeteryController {
         DeathCase deathCase = deathCaseRepository.findById(request.getDeathCaseId()).orElseThrow(() -> new IllegalArgumentException("Death case not found"));
 
         if (!deathCase.getApplicantFamilyMember().getId().equals(familyMember.getId())) {
-            return ResponseEntity.status(403).body("Unauthorized to book for this case.");
+            return ResponseEntity.status(403).body(Map.of("message", "Unauthorized to book for this case."));
         }
 
         CemeteryBooking booking = new CemeteryBooking();
@@ -104,7 +105,7 @@ public class CemeteryController {
         booking.setNotes(request.getNotes());
 
         bookingRepository.save(booking);
-        return ResponseEntity.ok("Booking requested successfully.");
+        return ResponseEntity.ok(Map.of("message", "Booking requested successfully."));
     }
 
     // ─── CEMETERY OWNER APIS ───
@@ -144,7 +145,7 @@ public class CemeteryController {
 
     @PostMapping("/cemetery-owner/schedule")
     @PreAuthorize("hasRole('CEMETERY')")
-    public ResponseEntity<String> addOwnerSchedule(@RequestBody CreateScheduleRequest request,
+    public ResponseEntity<Map<String, String>> addOwnerSchedule(@RequestBody CreateScheduleRequest request,
                                                    Authentication authentication) {
         User owner = userRepository.findByUsername(authentication.getName()).orElseThrow();
 
@@ -155,25 +156,40 @@ public class CemeteryController {
         schedule.setAvailable(true);
 
         scheduleRepository.save(schedule);
-        return ResponseEntity.ok("Schedule block added successfully.");
+        return ResponseEntity.ok(Map.of("message", "Schedule block added successfully."));
+    }
+
+    @DeleteMapping("/cemetery-owner/schedule/{id}")
+    @PreAuthorize("hasRole('CEMETERY')")
+    public ResponseEntity<Map<String, String>> deleteOwnerSchedule(@PathVariable Long id,
+                                                                   Authentication authentication) {
+        User owner = userRepository.findByUsername(authentication.getName()).orElseThrow();
+        CemeterySchedule schedule = scheduleRepository.findById(id).orElseThrow();
+
+        if (!schedule.getCemeteryOwner().getId().equals(owner.getId())) {
+            return ResponseEntity.status(403).body(Map.of("message", "Not your schedule."));
+        }
+
+        scheduleRepository.delete(schedule);
+        return ResponseEntity.ok(Map.of("message", "Schedule block deleted successfully."));
     }
 
     @PutMapping("/cemetery-owner/bookings/{id}")
     @PreAuthorize("hasRole('CEMETERY')")
-    public ResponseEntity<String> updateBookingStatus(@PathVariable Long id,
+    public ResponseEntity<Map<String, String>> updateBookingStatus(@PathVariable Long id,
                                                       @RequestBody UpdateBookingStatusRequest request,
                                                       Authentication authentication) {
         User owner = userRepository.findByUsername(authentication.getName()).orElseThrow();
         CemeteryBooking booking = bookingRepository.findById(id).orElseThrow();
 
         if (!booking.getCemeteryOwner().getId().equals(owner.getId())) {
-            return ResponseEntity.status(403).body("Not your booking.");
+            return ResponseEntity.status(403).body(Map.of("message", "Not your booking."));
         }
 
         booking.setStatus(CemeteryBooking.BookingStatus.valueOf(request.getStatus()));
         bookingRepository.save(booking);
 
-        return ResponseEntity.ok("Booking status updated to " + request.getStatus());
+        return ResponseEntity.ok(Map.of("message", "Booking status updated to " + request.getStatus()));
     }
 
     // ─── DTOs ───
