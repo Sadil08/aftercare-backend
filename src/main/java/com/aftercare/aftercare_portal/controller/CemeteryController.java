@@ -56,7 +56,26 @@ public class CemeteryController {
     public ResponseEntity<List<CemeteryScheduleDto>> getCemeterySchedule(@PathVariable Long id) {
         List<CemeterySchedule> schedules = scheduleRepository.findByCemeteryOwnerId(id);
         List<CemeteryScheduleDto> dtos = schedules.stream()
-                .map(s -> new CemeteryScheduleDto(s.getId(), s.getDate(), s.getStartTime(), s.getEndTime(), s.isAvailable()))
+                .map(s -> new CemeteryScheduleDto(s.getId(), s.getStartTime(), s.getEndTime(), s.isAvailable()))
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
+    }
+
+    @GetMapping("/cemeteries/{id}/booked-times")
+    @PreAuthorize("hasRole('FAMILY')")
+    public ResponseEntity<List<BookedTimeDto>> getBookedTimes(@PathVariable Long id, @RequestParam("date") String date) {
+        LocalDate localDate;
+        try {
+            // Some browsers can send over-formatted dates if user types wild years
+            localDate = LocalDate.parse(date);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        List<CemeteryBooking> bookings = bookingRepository.findByCemeteryOwnerId(id);
+        List<BookedTimeDto> dtos = bookings.stream()
+                .filter(b -> localDate.equals(b.getBookingDate()) && b.getStatus() == CemeteryBooking.BookingStatus.APPROVED)
+                .map(b -> new BookedTimeDto(b.getStartTime(), b.getEndTime()))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
     }
@@ -117,7 +136,7 @@ public class CemeteryController {
         List<CemeterySchedule> schedules = scheduleRepository.findByCemeteryOwner(owner);
 
         List<CemeteryScheduleDto> dtos = schedules.stream().map(s -> new CemeteryScheduleDto(
-                s.getId(), s.getDate(), s.getStartTime(), s.getEndTime(), s.isAvailable()
+                s.getId(), s.getStartTime(), s.getEndTime(), s.isAvailable()
         )).collect(Collectors.toList());
 
         return ResponseEntity.ok(dtos);
@@ -131,7 +150,6 @@ public class CemeteryController {
 
         CemeterySchedule schedule = new CemeterySchedule();
         schedule.setCemeteryOwner(owner);
-        schedule.setDate(request.getDate());
         schedule.setStartTime(request.getStartTime());
         schedule.setEndTime(request.getEndTime());
         schedule.setAvailable(true);
@@ -171,10 +189,15 @@ public class CemeteryController {
     @Data
     public static class CemeteryScheduleDto {
         private final Long id;
-        private final LocalDate date;
         private final LocalTime startTime;
         private final LocalTime endTime;
         private final boolean isAvailable;
+    }
+
+    @Data
+    public static class BookedTimeDto {
+        private final LocalTime startTime;
+        private final LocalTime endTime;
     }
 
     @Data
@@ -200,7 +223,6 @@ public class CemeteryController {
 
     @Data
     public static class CreateScheduleRequest {
-        private LocalDate date;
         private LocalTime startTime;
         private LocalTime endTime;
     }

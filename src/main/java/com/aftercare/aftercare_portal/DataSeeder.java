@@ -75,7 +75,14 @@ public class DataSeeder implements CommandLineRunner {
                           String rawPassword, String phone, String nicNo,
                           Role role, Sector sector) {
         if (userRepository.existsByUsername(username)) {
-            System.out.println("============== USER ALREADY EXISTS: " + username + " (skipped) ==============");
+            User existing = userRepository.findByUsername(username).orElse(null);
+            if (existing != null && !existing.getRoles().contains(role)) {
+                existing.grantRole(role);
+                userRepository.save(existing);
+                System.out.println("============== REPAIRED/UPDATED USER ROLE: " + username + " (" + role + ") ==============");
+            } else {
+                System.out.println("============== USER ALREADY EXISTS (Role intact): " + username + " ==============");
+            }
             return;
         }
 

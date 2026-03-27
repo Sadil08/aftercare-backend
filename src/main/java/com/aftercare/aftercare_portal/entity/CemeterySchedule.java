@@ -18,7 +18,6 @@ public class CemeterySchedule {
     @JoinColumn(name = "cemetery_owner_id", nullable = false)
     private User cemeteryOwner;
 
-    private LocalDate date;
     private LocalTime startTime;
     private LocalTime endTime;
 
