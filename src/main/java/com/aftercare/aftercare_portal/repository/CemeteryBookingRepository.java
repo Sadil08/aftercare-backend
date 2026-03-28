@@ -6,10 +6,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
-
-@Repository
+import java.util.Optional;@Repository
 public interface CemeteryBookingRepository extends JpaRepository<CemeteryBooking, Long> {
     List<CemeteryBooking> findByCemeteryOwner(User owner);
     List<CemeteryBooking> findByFamilyMember(User familyMember);
     List<CemeteryBooking> findByCemeteryOwnerId(Long ownerId);
+    Optional<CemeteryBooking> findFirstByDeathCaseIdOrderByIdDesc(Long deathCaseId);
 }

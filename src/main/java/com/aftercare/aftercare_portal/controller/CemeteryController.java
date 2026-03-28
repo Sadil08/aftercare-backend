@@ -108,6 +108,21 @@ public class CemeteryController {
         return ResponseEntity.ok(Map.of("message", "Booking requested successfully."));
     }
 
+    @GetMapping("/cases/{caseId}/cemetery-booking")
+    @PreAuthorize("hasRole('FAMILY')")
+    public ResponseEntity<CaseCemeteryBookingDto> getCaseCemeteryBooking(@PathVariable Long caseId, Authentication authentication) {
+        return bookingRepository.findFirstByDeathCaseIdOrderByIdDesc(caseId)
+                .map(b -> new CaseCemeteryBookingDto(
+                        b.getStatus().name(),
+                        b.getCemeteryOwner().getFullName(),
+                        b.getBookingDate(),
+                        b.getStartTime(),
+                        b.getEndTime()
+                ))
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     // ─── CEMETERY OWNER APIS ───
 
     @GetMapping("/cemetery-owner/bookings")
@@ -246,5 +261,14 @@ public class CemeteryController {
     @Data
     public static class UpdateBookingStatusRequest {
         private String status; // APPROVED, REJECTED
+    }
+
+    @Data
+    public static class CaseCemeteryBookingDto {
+        private final String status;
+        private final String cemeteryName;
+        private final LocalDate date;
+        private final LocalTime startTime;
+        private final LocalTime endTime;
     }
 }
