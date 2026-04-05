@@ -44,9 +44,15 @@ public class CemeteryController {
 
     @GetMapping("/cemeteries")
     @PreAuthorize("hasRole('FAMILY')")
-    public ResponseEntity<List<CemeteryDto>> getAvailableCemeteries() {
+    public ResponseEntity<List<CemeteryDto>> getAvailableCemeteries(@RequestParam("caseId") Long caseId) {
+        DeathCase deathCase = deathCaseRepository.findById(caseId)
+                .orElseThrow(() -> new IllegalArgumentException("Death case not found: " + caseId));
+
+        Long sectorId = deathCase.getSector().getId();
+
         List<User> cemeteries = userRepository.findByRole(Role.CEMETERY);
         List<CemeteryDto> dtos = cemeteries.stream()
+                .filter(c -> c.getSector() != null && sectorId.equals(c.getSector().getId()))
                 .map(c -> new CemeteryDto(c.getId(), c.getFullName(), c.getPhone(), c.getEmail()))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(dtos);

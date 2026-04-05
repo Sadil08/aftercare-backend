@@ -76,12 +76,23 @@ public class DataSeeder implements CommandLineRunner {
                           Role role, Sector sector) {
         if (userRepository.existsByUsername(username)) {
             User existing = userRepository.findByUsername(username).orElse(null);
-            if (existing != null && !existing.getRoles().contains(role)) {
-                existing.grantRole(role);
-                userRepository.save(existing);
-                System.out.println("============== REPAIRED/UPDATED USER ROLE: " + username + " (" + role + ") ==============");
-            } else {
-                System.out.println("============== USER ALREADY EXISTS (Role intact): " + username + " ==============");
+            if (existing != null) {
+                boolean changed = false;
+                if (!existing.getRoles().contains(role)) {
+                    existing.grantRole(role);
+                    changed = true;
+                    System.out.println("============== REPAIRED USER ROLE: " + username + " (" + role + ") ==============");
+                }
+                if (existing.getSector() == null && sector != null) {
+                    existing.assignSector(sector);
+                    changed = true;
+                    System.out.println("============== ASSIGNED SECTOR to existing user: " + username + " -> " + sector.getCode() + " ==============");
+                }
+                if (changed) {
+                    userRepository.save(existing);
+                } else {
+                    System.out.println("============== USER ALREADY EXISTS (intact): " + username + " ==============");
+                }
             }
             return;
         }
