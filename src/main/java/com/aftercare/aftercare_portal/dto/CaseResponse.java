@@ -21,12 +21,15 @@ public record CaseResponse(
         String sectorCode,
         String sectorName,
 
-        // Documents in flow order (null if not yet issued)
+        // Assigned doctor (may be null)
+        String assignedDoctorName,
+
+        // Documents in flow order (null if not yet applicable)
         Map<String, Object> formB12,
-        Map<String, Object> formB24,
-        Map<String, Object> formB11,
-        Map<String, Object> formB2,
+        Map<String, Object> formCr2Family,
+        Map<String, Object> formCr2,
 
         LocalDateTime createdAt,
         LocalDateTime updatedAt) {
 }
+

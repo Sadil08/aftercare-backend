@@ -19,5 +19,11 @@ public record CreateCaseRequest(
 
         @NotBlank(message = "Sector code is required") String sectorCode,
 
-        @NotBlank(message = "Address is required") String address) {
+        @NotBlank(message = "Address is required") String address,
+
+        /** Full CR-2 form fields as a JSON string, collected upfront from the family. */
+        @NotBlank(message = "CR-2 form data is required") String cr2FormData,
+
+        /** Optional ID of a Doctor to pre-assign for medical confirmation. */
+        Long doctorId) {
 }

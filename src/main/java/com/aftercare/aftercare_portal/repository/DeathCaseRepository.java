@@ -21,8 +21,11 @@ public interface DeathCaseRepository extends JpaRepository<DeathCase, Long> {
     // For Citizen — their own cases
     Page<DeathCase> findByApplicantFamilyMember(User applicant, Pageable pageable);
 
-    // For Registrar / Doctor — cases by status
+    // For Registrar / status-based queries
     Page<DeathCase> findByStatus(DeathCaseStatus status, Pageable pageable);
+
+    // For Doctor — cases assigned specifically to them
+    Page<DeathCase> findByStatusAndAssignedDoctor(DeathCaseStatus status, User doctor, Pageable pageable);
 
     // Search by deceased NIC
     Optional<DeathCase> findByDeceased_Nic(String nic);
@@ -38,3 +41,4 @@ public interface DeathCaseRepository extends JpaRepository<DeathCase, Long> {
     long countByStatusAndSector(DeathCaseStatus status, Sector sector);
     long countByApplicantFamilyMemberAndStatus(User applicant, DeathCaseStatus status);
 }
+

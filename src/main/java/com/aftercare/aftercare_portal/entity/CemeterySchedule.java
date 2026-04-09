@@ -3,7 +3,6 @@ package com.aftercare.aftercare_portal.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.time.LocalDate;
 import java.time.LocalTime;
 
 @Entity
