@@ -91,7 +91,8 @@ public class AuthService {
                 user.getEmail(),
                 user.getFullName(),
                 user.getNicNo(),
-                user.getRoles().stream().map(Enum::name).collect(Collectors.toSet()));
+                user.getRoles().stream().map(Enum::name).collect(Collectors.toSet()),
+                user.getDoctorId());
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -116,6 +117,7 @@ public class AuthService {
                 user.getEmail(),
                 user.getFullName(),
                 user.getNicNo(),
-                user.getRoles().stream().map(Enum::name).collect(Collectors.toSet()));
+                user.getRoles().stream().map(Enum::name).collect(Collectors.toSet()),
+                user.getDoctorId());
     }
 }

@@ -22,4 +22,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("SELECT u FROM User u JOIN u.roles r WHERE r = :role")
     List<User> findByRole(@Param("role") Role role);
+
+    /** Lookup a doctor by their alphanumeric Doctor ID (e.g. DOC-A1B2C3). */
+    Optional<User> findByDoctorId(String doctorId);
 }

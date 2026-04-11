@@ -24,6 +24,6 @@ public record CreateCaseRequest(
         /** Full CR-2 form fields as a JSON string, collected upfront from the family. */
         @NotBlank(message = "CR-2 form data is required") String cr2FormData,
 
-        /** Optional ID of a Doctor to pre-assign for medical confirmation. */
-        Long doctorId) {
+        /** Optional alphanumeric Doctor ID to pre-assign for medical confirmation (e.g. DOC-A1B2C3). */
+        String doctorId) {
 }

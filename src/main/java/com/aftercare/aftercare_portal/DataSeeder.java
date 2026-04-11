@@ -79,7 +79,7 @@ public class DataSeeder implements CommandLineRunner {
             if (existing != null) {
                 boolean changed = false;
                 if (!existing.getRoles().contains(role)) {
-                    existing.grantRole(role);
+                    existing.grantRole(role); // also auto-assigns doctorId if role == DOCTOR
                     changed = true;
                     System.out.println("============== REPAIRED USER ROLE: " + username + " (" + role + ") ==============");
                 }
@@ -88,10 +88,17 @@ public class DataSeeder implements CommandLineRunner {
                     changed = true;
                     System.out.println("============== ASSIGNED SECTOR to existing user: " + username + " -> " + sector.getCode() + " ==============");
                 }
+                // Repair: ensure existing doctors have a doctorId
+                if (role == com.aftercare.aftercare_portal.enums.Role.DOCTOR && existing.getDoctorId() == null) {
+                    existing.grantRole(role); // triggers doctorId generation via grantRole logic
+                    changed = true;
+                    System.out.println("============== ASSIGNED DOCTOR ID to " + username + ": " + existing.getDoctorId() + " ==============");
+                }
                 if (changed) {
                     userRepository.save(existing);
                 } else {
-                    System.out.println("============== USER ALREADY EXISTS (intact): " + username + " ==============");
+                    System.out.println("============== USER ALREADY EXISTS (intact): " + username
+                            + (existing.getDoctorId() != null ? " | Doctor ID: " + existing.getDoctorId() : "") + " ==============");
                 }
             }
             return;
@@ -99,10 +106,11 @@ public class DataSeeder implements CommandLineRunner {
 
         User user = new User(username, email, fullName,
                 passwordEncoder.encode(rawPassword), phone, nicNo);
-        user.grantRole(role);
+        user.grantRole(role); // auto-assigns doctorId if role == DOCTOR
         user.assignSector(sector);
         userRepository.save(user);
 
-        System.out.println("============== SEEDED USER: " + username + " (" + role + ") ==============");
+        String doctorInfo = user.getDoctorId() != null ? " | Doctor ID: " + user.getDoctorId() : "";
+        System.out.println("============== SEEDED USER: " + username + " (" + role + ")" + doctorInfo + " ==============");
     }
 }

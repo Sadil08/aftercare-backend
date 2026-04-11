@@ -1,7 +1,8 @@
 package com.aftercare.aftercare_portal.dto;
 
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 
 public record AssignDoctorRequest(
-        @NotNull(message = "Doctor ID is required") Long doctorId) {
+        @NotBlank(message = "Doctor ID is required (e.g. DOC-A1B2C3)") String doctorId) {
 }
+

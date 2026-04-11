@@ -9,5 +9,8 @@ public record AuthResponse(
         String email,
         String fullName,
         String nicNo,
-        Set<String> roles) {
+        Set<String> roles,
+        /** Alphanumeric Doctor ID (e.g. DOC-A1B2C3). Null for non-doctor users. */
+        String doctorId) {
 }
+

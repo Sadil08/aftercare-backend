@@ -67,10 +67,11 @@ public class DeathCaseService {
         FormCR2FamilyInfo cr2Info = new FormCR2FamilyInfo(applicant, cr2Hash, request.cr2FormData());
         deathCase.attachCr2FamilyData(cr2Info);
 
-        // Optionally pre-assign a doctor
-        if (request.doctorId() != null) {
-            User doctor = userRepository.findById(request.doctorId())
-                    .orElseThrow(() -> new EntityNotFoundException("Doctor not found: " + request.doctorId()));
+        // Optionally pre-assign a doctor by their alphanumeric Doctor ID
+        if (request.doctorId() != null && !request.doctorId().isBlank()) {
+            User doctor = userRepository.findByDoctorId(request.doctorId())
+                    .orElseThrow(() -> new EntityNotFoundException(
+                            "No doctor found with ID: " + request.doctorId() + ". Please verify the Doctor ID."));
             deathCase.setAssignedDoctor(doctor);
         }
 
@@ -95,13 +96,15 @@ public class DeathCaseService {
         return mapToResponse(deathCase);
     }
 
-    // ──── Phase 3: Family assigns a Doctor (fallback when no doctor was provided) ────
+    // ──── Phase 3: Family assigns a Doctor (fallback when no doctor was provided)
+    // ────
     @Transactional
     public CaseResponse assignDoctor(Long caseId, User actingFamily, AssignDoctorRequest request) {
         DeathCase deathCase = getCaseById(caseId);
 
-        User doctor = userRepository.findById(request.doctorId())
-                .orElseThrow(() -> new EntityNotFoundException("Doctor not found with ID: " + request.doctorId()));
+        User doctor = userRepository.findByDoctorId(request.doctorId())
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "No doctor found with ID: " + request.doctorId() + ". Please verify the Doctor ID."));
 
         deathCase.familyAssignDoctor(actingFamily, doctor);
         deathCase = deathCaseRepository.save(deathCase);
@@ -189,7 +192,8 @@ public class DeathCaseService {
     @Transactional(readOnly = true)
     public CaseResponse getActiveCaseByFamilyNic(String familyNic) {
         DeathCase dc = deathCaseRepository.findFirstByApplicantFamilyMember_NicNoOrderByCreatedAtDesc(familyNic)
-                .orElseThrow(() -> new EntityNotFoundException("No active death case found for family NIC: " + familyNic));
+                .orElseThrow(
+                        () -> new EntityNotFoundException("No active death case found for family NIC: " + familyNic));
         return mapToResponse(dc);
     }
 

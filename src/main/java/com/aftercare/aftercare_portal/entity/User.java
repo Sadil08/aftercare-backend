@@ -8,6 +8,7 @@ import lombok.AccessLevel;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 
 @Entity
 @Table(name = "users")
@@ -52,6 +53,13 @@ public class User {
     @Column(nullable = false)
     private boolean locked = false;
 
+    /**
+     * Alphanumeric identifier unique to Doctor accounts (e.g. DOC-A1B2C3).
+     * Null for all non-doctor roles. Used by families to route cases to a specific doctor.
+     */
+    @Column(name = "doctor_id", unique = true)
+    private String doctorId;
+
     public User(String username, String email, String fullName, String passwordHash, String phone, String nicNo) {
         this.username = username;
         this.email = email;
@@ -63,6 +71,16 @@ public class User {
 
     public void grantRole(Role role) {
         this.roles.add(role);
+        // Auto-generate a unique Doctor ID the first time the DOCTOR role is granted
+        if (role == Role.DOCTOR && this.doctorId == null) {
+            this.doctorId = generateDoctorId();
+        }
+    }
+
+    /** Generates a unique alphanumeric Doctor ID, e.g. DOC-A1B2C3. */
+    private static String generateDoctorId() {
+        String raw = UUID.randomUUID().toString().replace("-", "").toUpperCase();
+        return "DOC-" + raw.substring(0, 6);
     }
 
     public void assignSector(Sector sector) {
