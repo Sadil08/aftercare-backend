@@ -239,6 +239,9 @@ public class DeathCaseService {
 
     private CaseListResponse mapToListResponse(DeathCase dc) {
         String cause = dc.getFormB12() != null ? dc.getFormB12().getPrimaryCause() : null;
+        String b12DoctorName = dc.getFormB12() != null ? dc.getFormB12().getIssuedBy().getFullName() : null;
+        String b12DoctorId = dc.getFormB12() != null ? dc.getFormB12().getIssuedBy().getDoctorId() : null;
+        String b12Icd10Code = dc.getFormB12() != null ? dc.getFormB12().getIcd10Code() : null;
         return new CaseListResponse(
                 dc.getId(),
                 dc.getStatus().name(),
@@ -246,6 +249,9 @@ public class DeathCaseService {
                 dc.getDeceased().getNic(),
                 dc.getApplicantFamilyMember() != null ? dc.getApplicantFamilyMember().getFullName() : null,
                 cause,
+                b12DoctorName,
+                b12DoctorId,
+                b12Icd10Code,
                 dc.getSector().getName(),
                 dc.getCreatedAt(),
                 dc.getUpdatedAt());
