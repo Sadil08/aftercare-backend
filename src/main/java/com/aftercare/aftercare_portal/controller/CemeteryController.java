@@ -4,6 +4,7 @@ import com.aftercare.aftercare_portal.entity.CemeteryBooking;
 import com.aftercare.aftercare_portal.entity.CemeterySchedule;
 import com.aftercare.aftercare_portal.entity.DeathCase;
 import com.aftercare.aftercare_portal.entity.User;
+import com.aftercare.aftercare_portal.enums.DeathCaseStatus;
 import com.aftercare.aftercare_portal.enums.Role;
 import com.aftercare.aftercare_portal.repository.CemeteryBookingRepository;
 import com.aftercare.aftercare_portal.repository.CemeteryScheduleRepository;
@@ -44,9 +45,19 @@ public class CemeteryController {
 
     @GetMapping("/cemeteries")
     @PreAuthorize("hasRole('FAMILY')")
-    public ResponseEntity<List<CemeteryDto>> getAvailableCemeteries(@RequestParam("caseId") Long caseId) {
+    public ResponseEntity<List<CemeteryDto>> getAvailableCemeteries(@RequestParam("caseId") Long caseId,
+                                                                    Authentication authentication) {
         DeathCase deathCase = deathCaseRepository.findById(caseId)
                 .orElseThrow(() -> new IllegalArgumentException("Death case not found: " + caseId));
+        User familyMember = userRepository.findByUsername(authentication.getName()).orElseThrow();
+
+        if (!deathCase.getApplicantFamilyMember().getId().equals(familyMember.getId())) {
+            return ResponseEntity.status(403).build();
+        }
+
+        if (deathCase.getStatus() != DeathCaseStatus.CR2_ISSUED_CLOSED) {
+            return ResponseEntity.badRequest().build();
+        }
 
         Long sectorId = deathCase.getSector().getId();
 
@@ -99,6 +110,27 @@ public class CemeteryController {
         if (!deathCase.getApplicantFamilyMember().getId().equals(familyMember.getId())) {
             return ResponseEntity.status(403).body(Map.of("message", "Unauthorized to book for this case."));
         }
+        if (deathCase.getStatus() != DeathCaseStatus.CR2_ISSUED_CLOSED) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Cemetery booking is only available after the CR02 form is issued."));
+        }
+        if (!cemeteryOwner.getRoles().contains(Role.CEMETERY)) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Selected user is not a cemetery owner."));
+        }
+        if (cemeteryOwner.getSector() == null || deathCase.getSector() == null
+                || !cemeteryOwner.getSector().getId().equals(deathCase.getSector().getId())) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Selected cemetery is not available for this sector."));
+        }
+        if (request.getDate() == null || request.getStartTime() == null || request.getEndTime() == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Date and time slot are required."));
+        }
+        boolean activeBookingExists = bookingRepository.existsByDeathCaseIdAndFamilyMemberIdAndStatusIn(
+                deathCase.getId(),
+                familyMember.getId(),
+                List.of(CemeteryBooking.BookingStatus.PENDING, CemeteryBooking.BookingStatus.APPROVED)
+        );
+        if (activeBookingExists) {
+            return ResponseEntity.status(409).body(Map.of("message", "A cemetery booking already exists for this CR02 form."));
+        }
 
         CemeteryBooking booking = new CemeteryBooking();
         booking.setCemeteryOwner(cemeteryOwner);
@@ -117,7 +149,15 @@ public class CemeteryController {
     @GetMapping("/cases/{caseId}/cemetery-booking")
     @PreAuthorize("hasRole('FAMILY')")
     public ResponseEntity<CaseCemeteryBookingDto> getCaseCemeteryBooking(@PathVariable Long caseId, Authentication authentication) {
-        return bookingRepository.findFirstByDeathCaseIdOrderByIdDesc(caseId)
+        User familyMember = userRepository.findByUsername(authentication.getName()).orElseThrow();
+        DeathCase deathCase = deathCaseRepository.findById(caseId)
+                .orElseThrow(() -> new IllegalArgumentException("Death case not found: " + caseId));
+
+        if (!deathCase.getApplicantFamilyMember().getId().equals(familyMember.getId())) {
+            return ResponseEntity.status(403).build();
+        }
+
+        return bookingRepository.findFirstByDeathCaseIdAndFamilyMemberIdOrderByIdDesc(caseId, familyMember.getId())
                 .map(b -> new CaseCemeteryBookingDto(
                         b.getStatus().name(),
                         b.getCemeteryOwner().getFullName(),
