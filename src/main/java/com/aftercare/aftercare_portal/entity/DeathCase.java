@@ -1,13 +1,17 @@
 package com.aftercare.aftercare_portal.entity;
 
-import com.aftercare.aftercare_portal.entity.document.*;
+import com.aftercare.aftercare_portal.entity.document.FormB12;
+import com.aftercare.aftercare_portal.entity.document.FormB24;
+import com.aftercare.aftercare_portal.entity.document.FormCR2;
+import com.aftercare.aftercare_portal.entity.document.FormCR2FamilyInfo;
 import com.aftercare.aftercare_portal.enums.DeathCaseStatus;
 import com.aftercare.aftercare_portal.enums.Role;
 import jakarta.persistence.*;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.AccessLevel;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -36,6 +40,10 @@ public class DeathCase {
     @Column(nullable = false)
     private DeathCaseStatus status;
 
+    @ManyToOne
+    @JoinColumn(name = "assigned_doctor_id")
+    private User assignedDoctor;
+
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "form_b12_id")
     private FormB12 formB12;
@@ -57,14 +65,11 @@ public class DeathCase {
 
     private LocalDateTime updatedAt;
 
-    // ──── Constructor ────
-
     public DeathCase(User applicant, Deceased deceased, Sector sector) {
         if (!applicant.getRoles().contains(Role.FAMILY)) {
             throw new SecurityException("Initiator must have FAMILY role.");
         }
 
-        // Validate Date of Death >= Date of Birth
         if (deceased.getDateOfBirth() != null && deceased.getDateOfDeath() != null
                 && deceased.getDateOfDeath().isBefore(deceased.getDateOfBirth())) {
             throw new IllegalArgumentException("Date of death cannot be before date of birth.");
@@ -73,73 +78,139 @@ public class DeathCase {
         this.applicantFamilyMember = applicant;
         this.deceased = deceased;
         this.sector = sector;
-        this.status = DeathCaseStatus.PENDING_B12_MEDICAL;
+        this.status = DeathCaseStatus.PENDING_GN_REVIEW;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = this.createdAt;
     }
 
-    // ──── State Machine Methods (order matches diagrams) ────
-
-    // Step 2: Doctor issues B-12 (Medical Certification)
-    public void issueB12(User actingDoctor, String signatureHash,
-                         boolean naturalDeath, String icd10Code, String primaryCause) {
-        requireStatus(DeathCaseStatus.PENDING_B12_MEDICAL);
-        requireRole(actingDoctor, Role.DOCTOR, "Only a Doctor can issue a B-12.");
-
-        this.formB12 = new FormB12(actingDoctor, signatureHash, naturalDeath, icd10Code, primaryCause);
-        
-        if (!naturalDeath) {
-            this.status = DeathCaseStatus.REJECTED_UNNATURAL_DEATH;
-        } else {
-            this.status = DeathCaseStatus.PENDING_B24_GN;
-        }
-        
+    public void attachCr2FamilyData(FormCR2FamilyInfo info) {
+        this.formCr2FamilyInfo = info;
         this.updatedAt = LocalDateTime.now();
     }
 
-    // Step 3: GN issues B-24 (Identity & Residence Verification)
-    public void issueB24(User actingGN, String signatureHash,
-                         boolean identityVerified, boolean residenceVerified) {
-        requireStatus(DeathCaseStatus.PENDING_B24_GN);
-        requireRole(actingGN, Role.GRAMA_NILADHARI, "Only a Grama Niladhari can issue a B-24.");
-
-        this.formB24 = new FormB24(actingGN, signatureHash, identityVerified, residenceVerified);
-        this.status = DeathCaseStatus.PENDING_CR2_FAMILY;
+    public void setAssignedDoctor(User doctor) {
+        requireRole(doctor, Role.DOCTOR, "Assigned user must be a Doctor.");
+        this.assignedDoctor = doctor;
         this.updatedAt = LocalDateTime.now();
     }
 
-    // Step 4: Family submits CR-2 Data (Declaration)
-    public void submitCr2Family(User actingFamilyMember, String signatureHash, String cr2FormData) {
-        requireStatus(DeathCaseStatus.PENDING_CR2_FAMILY);
-        if (!actingFamilyMember.getId().equals(this.applicantFamilyMember.getId())) {
-            throw new SecurityException("Only the original applicant can submit the CR-2 Declaration.");
-        }
-
-        this.formCr2FamilyInfo = new FormCR2FamilyInfo(actingFamilyMember, signatureHash, cr2FormData);
+    public void gnApprove(User actingGN) {
+        requireStatus(DeathCaseStatus.PENDING_GN_REVIEW);
+        requireRole(actingGN, Role.GRAMA_NILADHARI, "Only a Grama Niladhari can approve a case.");
+        requireSameSector(actingGN);
         this.status = DeathCaseStatus.PENDING_REGISTRAR_REVIEW;
         this.updatedAt = LocalDateTime.now();
     }
 
-    // Step 5: Registrar issues CR-2 (Death Certificate)
+    public void gnRequestMedical(User actingGN) {
+        requireStatus(DeathCaseStatus.PENDING_GN_REVIEW);
+        requireRole(actingGN, Role.GRAMA_NILADHARI, "Only a Grama Niladhari can request medical confirmation.");
+        requireSameSector(actingGN);
+        if (this.assignedDoctor != null) {
+            this.status = DeathCaseStatus.PENDING_B12_MEDICAL;
+        } else {
+            this.status = DeathCaseStatus.PENDING_DOCTOR_ASSIGNMENT;
+        }
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void familyAssignDoctor(User actingFamily, User doctor) {
+        requireStatus(DeathCaseStatus.PENDING_DOCTOR_ASSIGNMENT);
+        if (!actingFamily.getId().equals(this.applicantFamilyMember.getId())) {
+            throw new SecurityException("Only the original applicant can assign a doctor.");
+        }
+        requireRole(doctor, Role.DOCTOR, "The specified user must be a Doctor.");
+        this.assignedDoctor = doctor;
+        this.status = DeathCaseStatus.PENDING_B12_MEDICAL;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void issueB12(User actingDoctor, String signatureHash,
+            boolean naturalDeath, String icd10Code, String immediateCause,
+            String antecedentCausesJson, String contributoryCausesJson,
+            LocalDateTime doctorViewedBodyAt, String doctorDesignation, String slmcRegistrationNo) {
+        requireStatus(DeathCaseStatus.PENDING_B12_MEDICAL);
+        requireRole(actingDoctor, Role.DOCTOR, "Only a Doctor can issue a B-12.");
+        if (this.assignedDoctor != null && !actingDoctor.getId().equals(this.assignedDoctor.getId())) {
+            throw new SecurityException("Only the assigned Doctor can issue a B-12 for this case.");
+        }
+
+        this.formB12 = new FormB12(
+                actingDoctor,
+                signatureHash,
+                naturalDeath,
+                icd10Code,
+                immediateCause,
+                antecedentCausesJson,
+                contributoryCausesJson,
+                doctorViewedBodyAt,
+                doctorDesignation,
+                slmcRegistrationNo);
+
+        this.status = naturalDeath ? DeathCaseStatus.PENDING_GN_REVIEW : DeathCaseStatus.REJECTED_UNNATURAL_DEATH;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void issueB12(User actingDoctor, String signatureHash,
+            boolean naturalDeath, String icd10Code, String primaryCause) {
+        issueB12(
+                actingDoctor,
+                signatureHash,
+                naturalDeath,
+                icd10Code,
+                primaryCause,
+                null,
+                null,
+                null,
+                null,
+                null);
+    }
+
+    public void issueB24(User actingGN, String signatureHash, String gramaDivision, String registrarDivision,
+            String serialNo, LocalDate deathDate, String placeOfDeath, String fullName, String sex, String race,
+            String age, String profession, String causeOfDeath, String informantName, String informantAddress,
+            String registrarName, String signedAt, LocalDate signDate, String gnSignature, boolean confirmed) {
+        requireStatus(DeathCaseStatus.PENDING_GN_REVIEW);
+        requireRole(actingGN, Role.GRAMA_NILADHARI, "Only a Grama Niladhari can issue a B-24.");
+        requireSameSector(actingGN);
+
+        this.formB24 = new FormB24(
+                actingGN,
+                signatureHash,
+                gramaDivision,
+                registrarDivision,
+                serialNo,
+                deathDate,
+                placeOfDeath,
+                fullName,
+                sex,
+                race,
+                age,
+                profession,
+                causeOfDeath,
+                informantName,
+                informantAddress,
+                registrarName,
+                signedAt,
+                signDate,
+                gnSignature,
+                confirmed);
+        this.status = DeathCaseStatus.PENDING_REGISTRAR_REVIEW;
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public void issueCr2(User actingRegistrar, String signatureHash, String serialNumber) {
         requireStatus(DeathCaseStatus.PENDING_REGISTRAR_REVIEW);
         requireRole(actingRegistrar, Role.REGISTRAR, "Only a Registrar can issue a CR-2.");
 
-        if (this.formB12 == null || this.formB24 == null) {
-            throw new IllegalStateException("Cannot issue CR-2: missing predecessor documents (B-12 or B-24).");
-        }
-
-        // Registrar must verify identity was confirmed by GN
-        if (!this.formB24.isIdentityVerified()) {
-            throw new IllegalStateException("Cannot issue CR-2: identity was not verified by GN.");
+        if (this.formCr2FamilyInfo == null) {
+            throw new IllegalStateException("Cannot issue CR-2: missing family declaration data.");
         }
 
         this.formCr2 = new FormCR2(actingRegistrar, signatureHash, serialNumber);
         this.status = DeathCaseStatus.CR2_ISSUED_CLOSED;
         this.updatedAt = LocalDateTime.now();
     }
-
-    // ──── Private Guards ────
 
     private void requireStatus(DeathCaseStatus expected) {
         if (this.status != expected) {
@@ -151,6 +222,12 @@ public class DeathCase {
     private void requireRole(User user, Role required, String message) {
         if (!user.getRoles().contains(required)) {
             throw new SecurityException("Unauthorized: " + message);
+        }
+    }
+
+    private void requireSameSector(User gnUser) {
+        if (gnUser.getSector() == null || !gnUser.getSector().getId().equals(this.sector.getId())) {
+            throw new SecurityException("You can only act on cases in your assigned sector.");
         }
     }
 }

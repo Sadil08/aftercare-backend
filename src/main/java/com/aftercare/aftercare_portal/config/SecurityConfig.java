@@ -18,10 +18,12 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -41,6 +43,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/**").permitAll()
                         // Case endpoints require authentication
                         .requestMatchers("/api/cases/**").authenticated()
+                        // Cemetery endpoints
+                        .requestMatchers("/api/cemeteries/**").hasRole("FAMILY")
+                        .requestMatchers("/api/cemetery-owner/**").hasRole("CEMETERY")
                         // Everything else requires authentication
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

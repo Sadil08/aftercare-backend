@@ -231,10 +231,10 @@ public class FormService {
 
             // DeathCase Workflow
             if (userOpt.isPresent()) {
-                long pendingCr2FamilyCount = deathCaseRepository.countByApplicantFamilyMemberAndStatus(userOpt.get(), DeathCaseStatus.PENDING_CR2_FAMILY);
-                if (pendingCr2FamilyCount > 0) {
-                    messages.add("You have " + pendingCr2FamilyCount + " cases pending your CR-2 Form Declaration.");
-                    count += pendingCr2FamilyCount;
+                long pendingDoctorCount = deathCaseRepository.countByApplicantFamilyMemberAndStatus(userOpt.get(), DeathCaseStatus.PENDING_DOCTOR_ASSIGNMENT);
+                if (pendingDoctorCount > 0) {
+                    messages.add("You have " + pendingDoctorCount + " case(s) requiring you to provide a Doctor for medical confirmation.");
+                    count += pendingDoctorCount;
                 }
                 long closedCount = deathCaseRepository.countByApplicantFamilyMemberAndStatus(userOpt.get(), DeathCaseStatus.CR2_ISSUED_CLOSED);
                 if (closedCount > 0) {
@@ -259,9 +259,9 @@ public class FormService {
 
             // DeathCase Workflow
             if (userOpt.isPresent() && userOpt.get().getSector() != null) {
-                long dcCount = deathCaseRepository.countByStatusAndSector(DeathCaseStatus.PENDING_B24_GN, userOpt.get().getSector());
+                long dcCount = deathCaseRepository.countByStatusAndSector(DeathCaseStatus.PENDING_GN_REVIEW, userOpt.get().getSector());
                 if (dcCount > 0) {
-                    messages.add(dcCount + " cases are pending your Identity/Residence Verification (B-24).");
+                    messages.add(dcCount + " case(s) in your sector are awaiting your review.");
                     count += dcCount;
                 }
             }

@@ -12,12 +12,20 @@ import lombok.AccessLevel;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class FormCR2FamilyInfo extends OfficialDocument {
 
+    @Column(name = "family_report_json", columnDefinition = "TEXT")
+    private String familyReportJson;
+
     @Column(columnDefinition = "TEXT", nullable = false)
     private String cr2FormData;
 
-    public FormCR2FamilyInfo(User issuedBy, String hash, String cr2FormData) {
+    public FormCR2FamilyInfo(User issuedBy, String hash, String familyReportJson, String cr2FormData) {
         super(issuedBy, hash);
-        this.cr2FormData = cr2FormData;
+        this.familyReportJson = familyReportJson;
+        this.cr2FormData = cr2FormData != null ? cr2FormData : familyReportJson;
+    }
+
+    public FormCR2FamilyInfo(User issuedBy, String hash, String cr2FormData) {
+        this(issuedBy, hash, null, cr2FormData);
     }
 
     @Override

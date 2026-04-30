@@ -4,5 +4,6 @@ public enum Role {
     FAMILY,
     GRAMA_NILADHARI,
     DOCTOR,
-    REGISTRAR
+    REGISTRAR,
+    CEMETERY
 }
