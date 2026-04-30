@@ -82,6 +82,12 @@ public class DeathCaseService {
             throw new IllegalArgumentException("A death case for this NIC already exists.");
         }
 
+        // Prevent a person from registering their own death.
+        if (familyReport.deceased().nic() != null
+                && familyReport.deceased().nic().equals(applicant.getNicNo())) {
+            throw new SecurityException("A person cannot register their own death.");
+        }
+
         Sector sector = sectorRepository.findByCode(familyReport.sectorCode())
                 .orElseThrow(() -> new EntityNotFoundException("Sector not found: " + familyReport.sectorCode()));
 
@@ -219,6 +225,16 @@ public class DeathCaseService {
 
         deathCase.issueCr2(actingRegistrar, hash, serialNumber);
         deathCase = deathCaseRepository.save(deathCase);
+
+        // If the deceased person had a portal account, lock it immediately.
+        // This covers edge cases like a GN or doctor whose own death was registered.
+        String deceasedNic = deathCase.getDeceased().getNic();
+        if (deceasedNic != null) {
+            userRepository.findByNicNo(deceasedNic).ifPresent(deceasedUser -> {
+                deceasedUser.lock();
+                userRepository.save(deceasedUser);
+            });
+        }
 
         return mapToResponse(deathCase, actingRegistrar);
     }

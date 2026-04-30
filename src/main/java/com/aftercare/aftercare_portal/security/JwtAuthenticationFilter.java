@@ -35,6 +35,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String username = jwtUtil.extractUsername(token);
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
+            // Reject requests from locked/disabled accounts even if their JWT is still valid.
+            // This ensures that locking an account takes effect immediately, not just at next login.
+            if (!userDetails.isAccountNonLocked() || !userDetails.isEnabled()) {
+                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Account is locked or disabled.");
+                return;
+            }
+
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails,
                     null, userDetails.getAuthorities());
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

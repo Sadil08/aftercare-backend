@@ -5,5 +5,6 @@ public enum Role {
     GRAMA_NILADHARI,
     DOCTOR,
     REGISTRAR,
-    CEMETERY
+    CEMETERY,
+    ADMIN
 }
