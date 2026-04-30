@@ -7,29 +7,27 @@ import java.util.Map;
 public record CaseResponse(
         Long caseId,
         String status,
-
-        // Applicant info
         String applicantName,
         String applicantNic,
-
-        // Deceased info
         String deceasedFullName,
+        String deceasedOfficialName,
         String deceasedNic,
+        LocalDate dateOfBirth,
         LocalDate dateOfDeath,
         String gender,
         String address,
         String sectorCode,
         String sectorName,
-
-        // Assigned doctor (may be null)
+        String assignedDoctorId,
         String assignedDoctorName,
-
-        // Documents in flow order (null if not yet applicable)
+        Map<String, Object> familyReport,
+        Map<String, Object> b12HeaderPrefill,
+        Map<String, Object> b24Prefill,
+        Map<String, Object> cr2Prefill,
         Map<String, Object> formB12,
+        Map<String, Object> formB24,
         Map<String, Object> formCr2Family,
         Map<String, Object> formCr2,
-
         LocalDateTime createdAt,
         LocalDateTime updatedAt) {
 }
-

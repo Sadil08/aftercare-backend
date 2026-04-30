@@ -24,6 +24,7 @@ class DeathCaseTest {
     @BeforeEach
     void setUp() {
         sector = new Sector("SEC-01", "Colombo 1", "Colombo");
+        setEntityId(sector, 10L);
 
         familyMember = new User("family1", "family@test.com", "Family Name", "hash", "0711111111", "123456789V");
         familyMember.grantRole(Role.FAMILY);

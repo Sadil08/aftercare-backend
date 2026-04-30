@@ -1,6 +1,12 @@
 package com.aftercare.aftercare_portal.controller;
 
-import com.aftercare.aftercare_portal.dto.*;
+import com.aftercare.aftercare_portal.dto.AssignDoctorRequest;
+import com.aftercare.aftercare_portal.dto.CaseListResponse;
+import com.aftercare.aftercare_portal.dto.CaseResponse;
+import com.aftercare.aftercare_portal.dto.CreateCaseRequest;
+import com.aftercare.aftercare_portal.dto.GnActionRequest;
+import com.aftercare.aftercare_portal.dto.IssueB12Request;
+import com.aftercare.aftercare_portal.dto.IssueB24Request;
 import com.aftercare.aftercare_portal.entity.User;
 import com.aftercare.aftercare_portal.enums.DeathCaseStatus;
 import com.aftercare.aftercare_portal.repository.UserRepository;
@@ -27,7 +33,6 @@ public class DeathCaseController {
         this.userRepository = userRepository;
     }
 
-    // ──── F01: Family Initiates Case (now includes CR-2 data + optional doctorId) ────
     @PostMapping
     public ResponseEntity<CaseResponse> createCase(@Valid @RequestBody CreateCaseRequest request, Authentication auth) {
         User user = getUser(auth);
@@ -35,7 +40,6 @@ public class DeathCaseController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    // ──── F02: GN Review Action (Approve or Request Medical) ────
     @PostMapping("/{caseId}/gn-action")
     public ResponseEntity<CaseResponse> gnAction(
             @PathVariable(name = "caseId") Long caseId,
@@ -46,7 +50,6 @@ public class DeathCaseController {
         return ResponseEntity.ok(response);
     }
 
-    // ──── F03: Family Assigns Doctor (fallback when PENDING_DOCTOR_ASSIGNMENT) ────
     @PatchMapping("/{caseId}/assign-doctor")
     public ResponseEntity<CaseResponse> assignDoctor(
             @PathVariable(name = "caseId") Long caseId,
@@ -57,7 +60,6 @@ public class DeathCaseController {
         return ResponseEntity.ok(response);
     }
 
-    // ──── F04: Doctor Issues B-12 (Medical Certification) ────
     @PostMapping("/{caseId}/b12")
     public ResponseEntity<CaseResponse> issueB12(
             @PathVariable(name = "caseId") Long caseId,
@@ -68,7 +70,16 @@ public class DeathCaseController {
         return ResponseEntity.ok(response);
     }
 
-    // ──── F05: Registrar Issues CR-2 (pre-filled from creation-time data) ────
+    @PostMapping("/{caseId}/b24")
+    public ResponseEntity<CaseResponse> issueB24(
+            @PathVariable(name = "caseId") Long caseId,
+            @Valid @RequestBody IssueB24Request request,
+            Authentication auth) {
+        User gn = getUser(auth);
+        CaseResponse response = deathCaseService.issueB24(caseId, gn, request);
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/{caseId}/cr2")
     public ResponseEntity<CaseResponse> issueCr2(
             @PathVariable(name = "caseId") Long caseId,
@@ -77,8 +88,6 @@ public class DeathCaseController {
         CaseResponse response = deathCaseService.issueCr2(caseId, registrar);
         return ResponseEntity.ok(response);
     }
-
-    // ──── Case Listing & Tracking ────
 
     @GetMapping
     public ResponseEntity<Page<CaseListResponse>> getCases(
@@ -113,7 +122,6 @@ public class DeathCaseController {
         }
     }
 
-    // Helper
     private User getUser(Authentication auth) {
         String username = auth.getName();
         return userRepository.findByUsername(username)

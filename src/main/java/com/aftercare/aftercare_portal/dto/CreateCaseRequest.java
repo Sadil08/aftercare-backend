@@ -1,29 +1,21 @@
 package com.aftercare.aftercare_portal.dto;
 
 import com.aftercare.aftercare_portal.enums.Gender;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.Valid;
 
 import java.time.LocalDate;
 
 public record CreateCaseRequest(
-        @NotBlank(message = "Deceased full name is required") String deceasedFullName,
+        @Valid CanonicalFamilyReport familyReport,
 
+        // Legacy fields kept temporarily for backward compatibility.
+        String deceasedFullName,
         String deceasedNic,
-
         LocalDate dateOfBirth,
-
-        @NotNull(message = "Date of death is required") LocalDate dateOfDeath,
-
-        @NotNull(message = "Gender is required") Gender gender,
-
-        @NotBlank(message = "Sector code is required") String sectorCode,
-
-        @NotBlank(message = "Address is required") String address,
-
-        /** Full CR-2 form fields as a JSON string, collected upfront from the family. */
-        @NotBlank(message = "CR-2 form data is required") String cr2FormData,
-
-        /** Optional alphanumeric Doctor ID to pre-assign for medical confirmation (e.g. DOC-A1B2C3). */
+        LocalDate dateOfDeath,
+        Gender gender,
+        String sectorCode,
+        String address,
+        String cr2FormData,
         String doctorId) {
 }

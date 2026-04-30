@@ -1,13 +1,17 @@
 package com.aftercare.aftercare_portal.entity;
 
-import com.aftercare.aftercare_portal.entity.document.*;
+import com.aftercare.aftercare_portal.entity.document.FormB12;
+import com.aftercare.aftercare_portal.entity.document.FormB24;
+import com.aftercare.aftercare_portal.entity.document.FormCR2;
+import com.aftercare.aftercare_portal.entity.document.FormCR2FamilyInfo;
 import com.aftercare.aftercare_portal.enums.DeathCaseStatus;
 import com.aftercare.aftercare_portal.enums.Role;
 import jakarta.persistence.*;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.AccessLevel;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -36,7 +40,6 @@ public class DeathCase {
     @Column(nullable = false)
     private DeathCaseStatus status;
 
-    /** The doctor explicitly routed to this case (set at creation or assigned later by family). */
     @ManyToOne
     @JoinColumn(name = "assigned_doctor_id")
     private User assignedDoctor;
@@ -45,10 +48,10 @@ public class DeathCase {
     @JoinColumn(name = "form_b12_id")
     private FormB12 formB12;
 
-    /**
-     * CR-2 family declaration data — now collected at case creation time.
-     * Null only for legacy / test cases.
-     */
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "form_b24_id")
+    private FormB24 formB24;
+
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "form_cr2_family_id")
     private FormCR2FamilyInfo formCr2FamilyInfo;
@@ -62,14 +65,11 @@ public class DeathCase {
 
     private LocalDateTime updatedAt;
 
-    // ──── Constructor ────
-
     public DeathCase(User applicant, Deceased deceased, Sector sector) {
         if (!applicant.getRoles().contains(Role.FAMILY)) {
             throw new SecurityException("Initiator must have FAMILY role.");
         }
 
-        // Validate Date of Death >= Date of Birth
         if (deceased.getDateOfBirth() != null && deceased.getDateOfDeath() != null
                 && deceased.getDateOfDeath().isBefore(deceased.getDateOfBirth())) {
             throw new IllegalArgumentException("Date of death cannot be before date of birth.");
@@ -83,27 +83,17 @@ public class DeathCase {
         this.updatedAt = this.createdAt;
     }
 
-    // ──── Data attachment (called after construction in the service layer) ────
-
-    /** Attaches the family CR-2 declaration data supplied at case creation. */
     public void attachCr2FamilyData(FormCR2FamilyInfo info) {
         this.formCr2FamilyInfo = info;
         this.updatedAt = LocalDateTime.now();
     }
 
-    /** Sets the optional pre-assigned doctor supplied at case creation. */
     public void setAssignedDoctor(User doctor) {
         requireRole(doctor, Role.DOCTOR, "Assigned user must be a Doctor.");
         this.assignedDoctor = doctor;
         this.updatedAt = LocalDateTime.now();
     }
 
-    // ──── State Machine Methods ────
-
-    /**
-     * GN Action — Approve: forwards case directly to Registrar.
-     * Valid from PENDING_GN_REVIEW (initial or post-B12 natural death).
-     */
     public void gnApprove(User actingGN) {
         requireStatus(DeathCaseStatus.PENDING_GN_REVIEW);
         requireRole(actingGN, Role.GRAMA_NILADHARI, "Only a Grama Niladhari can approve a case.");
@@ -112,11 +102,6 @@ public class DeathCase {
         this.updatedAt = LocalDateTime.now();
     }
 
-    /**
-     * GN Action — Request Medical Confirmation.
-     * Routes to PENDING_B12_MEDICAL if a doctor is assigned, or PENDING_DOCTOR_ASSIGNMENT
-     * if the family has not yet provided a doctor.
-     */
     public void gnRequestMedical(User actingGN) {
         requireStatus(DeathCaseStatus.PENDING_GN_REVIEW);
         requireRole(actingGN, Role.GRAMA_NILADHARI, "Only a Grama Niladhari can request medical confirmation.");
@@ -129,9 +114,6 @@ public class DeathCase {
         this.updatedAt = LocalDateTime.now();
     }
 
-    /**
-     * Family assigns a doctor after being prompted (PENDING_DOCTOR_ASSIGNMENT).
-     */
     public void familyAssignDoctor(User actingFamily, User doctor) {
         requireStatus(DeathCaseStatus.PENDING_DOCTOR_ASSIGNMENT);
         if (!actingFamily.getId().equals(this.applicantFamilyMember.getId())) {
@@ -143,50 +125,92 @@ public class DeathCase {
         this.updatedAt = LocalDateTime.now();
     }
 
-    /**
-     * Doctor issues B-12 (Medical Certification).
-     * — Natural death → returns case to GN for final forwarding (PENDING_GN_REVIEW)
-     * — Unnatural death → REJECTED_UNNATURAL_DEATH
-     */
     public void issueB12(User actingDoctor, String signatureHash,
-                         boolean naturalDeath, String icd10Code, String primaryCause) {
+            boolean naturalDeath, String icd10Code, String immediateCause,
+            String antecedentCausesJson, String contributoryCausesJson,
+            LocalDateTime doctorViewedBodyAt, String doctorDesignation, String slmcRegistrationNo) {
         requireStatus(DeathCaseStatus.PENDING_B12_MEDICAL);
         requireRole(actingDoctor, Role.DOCTOR, "Only a Doctor can issue a B-12.");
-        // Enforce that only the assigned doctor may act (if one is set)
         if (this.assignedDoctor != null && !actingDoctor.getId().equals(this.assignedDoctor.getId())) {
             throw new SecurityException("Only the assigned Doctor can issue a B-12 for this case.");
         }
 
-        this.formB12 = new FormB12(actingDoctor, signatureHash, naturalDeath, icd10Code, primaryCause);
+        this.formB12 = new FormB12(
+                actingDoctor,
+                signatureHash,
+                naturalDeath,
+                icd10Code,
+                immediateCause,
+                antecedentCausesJson,
+                contributoryCausesJson,
+                doctorViewedBodyAt,
+                doctorDesignation,
+                slmcRegistrationNo);
 
-        if (!naturalDeath) {
-            this.status = DeathCaseStatus.REJECTED_UNNATURAL_DEATH;
-        } else {
-            // Return to GN so they can forward to Registrar
-            this.status = DeathCaseStatus.PENDING_GN_REVIEW;
-        }
-
+        this.status = naturalDeath ? DeathCaseStatus.PENDING_GN_REVIEW : DeathCaseStatus.REJECTED_UNNATURAL_DEATH;
         this.updatedAt = LocalDateTime.now();
     }
 
-    /**
-     * Registrar issues CR-2 (Death Certificate).
-     * CR-2 family data must have been provided at case creation.
-     */
+    public void issueB12(User actingDoctor, String signatureHash,
+            boolean naturalDeath, String icd10Code, String primaryCause) {
+        issueB12(
+                actingDoctor,
+                signatureHash,
+                naturalDeath,
+                icd10Code,
+                primaryCause,
+                null,
+                null,
+                null,
+                null,
+                null);
+    }
+
+    public void issueB24(User actingGN, String signatureHash, String gramaDivision, String registrarDivision,
+            String serialNo, LocalDate deathDate, String placeOfDeath, String fullName, String sex, String race,
+            String age, String profession, String causeOfDeath, String informantName, String informantAddress,
+            String registrarName, String signedAt, LocalDate signDate, String gnSignature, boolean confirmed) {
+        requireStatus(DeathCaseStatus.PENDING_GN_REVIEW);
+        requireRole(actingGN, Role.GRAMA_NILADHARI, "Only a Grama Niladhari can issue a B-24.");
+        requireSameSector(actingGN);
+
+        this.formB24 = new FormB24(
+                actingGN,
+                signatureHash,
+                gramaDivision,
+                registrarDivision,
+                serialNo,
+                deathDate,
+                placeOfDeath,
+                fullName,
+                sex,
+                race,
+                age,
+                profession,
+                causeOfDeath,
+                informantName,
+                informantAddress,
+                registrarName,
+                signedAt,
+                signDate,
+                gnSignature,
+                confirmed);
+        this.status = DeathCaseStatus.PENDING_REGISTRAR_REVIEW;
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public void issueCr2(User actingRegistrar, String signatureHash, String serialNumber) {
         requireStatus(DeathCaseStatus.PENDING_REGISTRAR_REVIEW);
         requireRole(actingRegistrar, Role.REGISTRAR, "Only a Registrar can issue a CR-2.");
 
         if (this.formCr2FamilyInfo == null) {
-            throw new IllegalStateException("Cannot issue CR-2: missing family CR-2 declaration data.");
+            throw new IllegalStateException("Cannot issue CR-2: missing family declaration data.");
         }
 
         this.formCr2 = new FormCR2(actingRegistrar, signatureHash, serialNumber);
         this.status = DeathCaseStatus.CR2_ISSUED_CLOSED;
         this.updatedAt = LocalDateTime.now();
     }
-
-    // ──── Private Guards ────
 
     private void requireStatus(DeathCaseStatus expected) {
         if (this.status != expected) {
