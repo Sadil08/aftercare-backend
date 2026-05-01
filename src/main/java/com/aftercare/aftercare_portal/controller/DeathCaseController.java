@@ -111,6 +111,15 @@ public class DeathCaseController {
         return ResponseEntity.ok(response);
     }
 
+    @DeleteMapping("/{caseId}")
+    public ResponseEntity<Void> deleteCase(
+            @PathVariable(name = "caseId") Long caseId,
+            Authentication auth) {
+        User user = getUser(auth);
+        deathCaseService.deleteCase(caseId, user);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/active/{familyNic}")
     public ResponseEntity<CaseResponse> getActiveCaseByFamilyNic(
             @PathVariable(name = "familyNic") String familyNic) {
