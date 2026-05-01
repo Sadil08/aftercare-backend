@@ -7,6 +7,8 @@ import com.aftercare.aftercare_portal.enums.DeathCaseStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -38,6 +40,11 @@ public interface DeathCaseRepository extends JpaRepository<DeathCase, Long> {
 
     // Certificate verification
     Optional<DeathCase> findByFormCr2_CertificateSerialNumber(String serialNumber);
+
+    // Stale case detection — cases not yet closed that were created before the cutoff
+    @Query("SELECT dc FROM DeathCase dc WHERE dc.status NOT IN " +
+           "('CR2_ISSUED_CLOSED', 'REJECTED_UNNATURAL_DEATH') AND dc.createdAt < :cutoff")
+    List<DeathCase> findStaleCasesOpenBefore(@Param("cutoff") java.time.LocalDateTime cutoff);
 
     // Counts for Notifications
     long countByStatus(DeathCaseStatus status);

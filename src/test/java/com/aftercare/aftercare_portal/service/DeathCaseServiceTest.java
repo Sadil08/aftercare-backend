@@ -12,6 +12,8 @@ import com.aftercare.aftercare_portal.entity.User;
 import com.aftercare.aftercare_portal.enums.Gender;
 import com.aftercare.aftercare_portal.enums.Role;
 import com.aftercare.aftercare_portal.repository.CaseAuditLogRepository;
+import com.aftercare.aftercare_portal.service.SlmcRegistryService;
+import com.aftercare.aftercare_portal.repository.CitizenRepository;
 import com.aftercare.aftercare_portal.repository.DeathCaseRepository;
 import com.aftercare.aftercare_portal.repository.DeceasedRepository;
 import com.aftercare.aftercare_portal.repository.SectorRepository;
@@ -61,6 +63,12 @@ class DeathCaseServiceTest {
     @Mock
     private CaseAuditLogRepository auditLogRepository;
 
+    @Mock
+    private CitizenRepository citizenRepository;
+
+    @Mock
+    private SlmcRegistryService slmcRegistryService;
+
     private DeathCaseService deathCaseService;
     private final AtomicReference<DeathCase> storedCase = new AtomicReference<>();
 
@@ -79,10 +87,12 @@ class DeathCaseServiceTest {
                 deceasedRepository,
                 sectorRepository,
                 userRepository,
+                citizenRepository,
                 hashService,
                 objectMapper,
                 validator,
-                auditLogRepository);
+                auditLogRepository,
+                slmcRegistryService);
 
         sector = new Sector("KANDY-01", "Kandy Central", "Kandy");
         family = new User("family1", "family@test.com", "Family Member", "hash", "0711111111", "901234567V");

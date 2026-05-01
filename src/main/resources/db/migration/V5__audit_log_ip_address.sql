@@ -1,0 +1,1 @@
+ALTER TABLE case_audit_log ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45);

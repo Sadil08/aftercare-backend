@@ -39,4 +39,6 @@ public class CaseAuditLog {
 
     @Column(nullable = false)
     private LocalDateTime performedAt;
+
+    private String ipAddress;
 }

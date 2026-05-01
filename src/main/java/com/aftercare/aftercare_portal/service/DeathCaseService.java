@@ -9,6 +9,7 @@ import com.aftercare.aftercare_portal.dto.GnActionRequest;
 import com.aftercare.aftercare_portal.dto.IssueB12Request;
 import com.aftercare.aftercare_portal.dto.IssueB24Request;
 import com.aftercare.aftercare_portal.entity.CaseAuditLog;
+import com.aftercare.aftercare_portal.entity.Citizen;
 import com.aftercare.aftercare_portal.entity.DeathCase;
 import com.aftercare.aftercare_portal.entity.Deceased;
 import com.aftercare.aftercare_portal.entity.Sector;
@@ -20,11 +21,15 @@ import com.aftercare.aftercare_portal.entity.document.FormCR2FamilyInfo;
 import com.aftercare.aftercare_portal.enums.DeathCaseStatus;
 import com.aftercare.aftercare_portal.enums.Role;
 import com.aftercare.aftercare_portal.repository.CaseAuditLogRepository;
+import com.aftercare.aftercare_portal.repository.CitizenRepository;
 import com.aftercare.aftercare_portal.repository.DeathCaseRepository;
 import com.aftercare.aftercare_portal.repository.DeceasedRepository;
 import com.aftercare.aftercare_portal.repository.SectorRepository;
 import com.aftercare.aftercare_portal.repository.UserRepository;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.util.HtmlUtils;
+import jakarta.servlet.http.HttpServletRequest;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -52,26 +57,33 @@ public class DeathCaseService {
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
     };
 
+    private static final int MAX_DAILY_B12_CERTIFICATIONS = 10;
+
     private final DeathCaseRepository deathCaseRepository;
     private final DeceasedRepository deceasedRepository;
     private final SectorRepository sectorRepository;
     private final UserRepository userRepository;
+    private final CitizenRepository citizenRepository;
     private final HashService hashService;
     private final ObjectMapper objectMapper;
     private final Validator validator;
     private final CaseAuditLogRepository auditLogRepository;
+    private final SlmcRegistryService slmcRegistryService;
 
     public DeathCaseService(DeathCaseRepository deathCaseRepository, DeceasedRepository deceasedRepository,
-            SectorRepository sectorRepository, UserRepository userRepository, HashService hashService,
-            ObjectMapper objectMapper, Validator validator, CaseAuditLogRepository auditLogRepository) {
+            SectorRepository sectorRepository, UserRepository userRepository, CitizenRepository citizenRepository,
+            HashService hashService, ObjectMapper objectMapper, Validator validator,
+            CaseAuditLogRepository auditLogRepository, SlmcRegistryService slmcRegistryService) {
         this.deathCaseRepository = deathCaseRepository;
         this.deceasedRepository = deceasedRepository;
         this.sectorRepository = sectorRepository;
         this.userRepository = userRepository;
+        this.citizenRepository = citizenRepository;
         this.hashService = hashService;
         this.objectMapper = objectMapper;
         this.validator = validator;
         this.auditLogRepository = auditLogRepository;
+        this.slmcRegistryService = slmcRegistryService;
     }
 
     @Transactional
@@ -91,6 +103,16 @@ public class DeathCaseService {
         if (familyReport.deceased().nic() != null
                 && familyReport.deceased().nic().equals(applicant.getNicNo())) {
             throw new SecurityException("A person cannot register their own death.");
+        }
+
+        // Cross-check against the national citizen registry — deceased must be recorded as alive.
+        if (familyReport.deceased().nic() != null) {
+            citizenRepository.findByNic(familyReport.deceased().nic()).ifPresent(citizen -> {
+                if (!citizen.isAlive()) {
+                    throw new IllegalArgumentException(
+                            "This person is already registered as deceased in the national registry.");
+                }
+            });
         }
 
         Sector sector = sectorRepository.findByCode(familyReport.sectorCode())
@@ -156,6 +178,28 @@ public class DeathCaseService {
     @Transactional
     public CaseResponse issueB12(Long caseId, User actingDoctor, IssueB12Request request) {
         DeathCase deathCase = getCaseById(caseId);
+
+        // SLMC number must be valid format before any certification is allowed
+        slmcRegistryService.validate(request.slmcRegistrationNo());
+
+        // Verify the certifying doctor is alive in the national registry
+        if (actingDoctor.getNicNo() != null) {
+            citizenRepository.findByNic(actingDoctor.getNicNo()).ifPresent(citizen -> {
+                if (!citizen.isAlive()) {
+                    throw new SecurityException("The certifying doctor is registered as deceased in the national registry.");
+                }
+            });
+        }
+
+        // Anomaly detection: flag if doctor exceeds daily certification threshold
+        long todayCount = auditLogRepository.countByActorActionSince(
+                actingDoctor.getUsername(), "ISSUE_B12",
+                java.time.LocalDate.now().atStartOfDay());
+        if (todayCount >= MAX_DAILY_B12_CERTIFICATIONS) {
+            throw new SecurityException(
+                    "Daily B-12 certification limit of " + MAX_DAILY_B12_CERTIFICATIONS +
+                    " reached. Contact administration for review.");
+        }
 
         String antecedentJson = toJson(orEmptyList(request.antecedentCauses()));
         String contributoryJson = toJson(orEmptyList(request.contributoryCauses()));
@@ -243,13 +287,17 @@ public class DeathCaseService {
         deathCase = deathCaseRepository.save(deathCase);
         audit(deathCase, "ISSUE_CR2", actingRegistrar, before, deathCase.getStatus());
 
-        // If the deceased person had a portal account, lock it immediately.
-        // This covers edge cases like a GN or doctor whose own death was registered.
         String deceasedNic = deathCase.getDeceased().getNic();
         if (deceasedNic != null) {
+            // Lock portal account (covers cases where the deceased was also a registered official)
             userRepository.findByNicNo(deceasedNic).ifPresent(deceasedUser -> {
                 deceasedUser.lock();
                 userRepository.save(deceasedUser);
+            });
+            // Update national citizen registry — mark as deceased so no future case can be submitted
+            citizenRepository.findByNic(deceasedNic).ifPresent(citizen -> {
+                citizen.markDeceased();
+                citizenRepository.save(citizen);
             });
         }
 
@@ -815,7 +863,19 @@ public class DeathCaseService {
                 .fromStatus(from)
                 .toStatus(to)
                 .performedAt(java.time.LocalDateTime.now())
+                .ipAddress(extractClientIp())
                 .build());
+    }
+
+    private String extractClientIp() {
+        try {
+            HttpServletRequest req = ((ServletRequestAttributes)
+                    RequestContextHolder.currentRequestAttributes()).getRequest();
+            String xff = req.getHeader("X-Forwarded-For");
+            return xff != null ? xff.split(",")[0].trim() : req.getRemoteAddr();
+        } catch (Exception e) {
+            return "unknown";
+        }
     }
 
     private String sanitize(String value) {

@@ -98,6 +98,7 @@ public class DeathCase {
         requireStatus(DeathCaseStatus.PENDING_GN_REVIEW);
         requireRole(actingGN, Role.GRAMA_NILADHARI, "Only a Grama Niladhari can approve a case.");
         requireSameSector(actingGN);
+        requireNoConflictOfInterest(actingGN);
         this.status = DeathCaseStatus.PENDING_REGISTRAR_REVIEW;
         this.updatedAt = LocalDateTime.now();
     }
@@ -106,6 +107,7 @@ public class DeathCase {
         requireStatus(DeathCaseStatus.PENDING_GN_REVIEW);
         requireRole(actingGN, Role.GRAMA_NILADHARI, "Only a Grama Niladhari can request medical confirmation.");
         requireSameSector(actingGN);
+        requireNoConflictOfInterest(actingGN);
         if (this.assignedDoctor != null) {
             this.status = DeathCaseStatus.PENDING_B12_MEDICAL;
         } else {
@@ -228,6 +230,19 @@ public class DeathCase {
     private void requireSameSector(User gnUser) {
         if (gnUser.getSector() == null || !gnUser.getSector().getId().equals(this.sector.getId())) {
             throw new SecurityException("You can only act on cases in your assigned sector.");
+        }
+    }
+
+    private void requireNoConflictOfInterest(User actingGN) {
+        if (actingGN.getNicNo() != null
+                && actingGN.getNicNo().equals(this.applicantFamilyMember.getNicNo())) {
+            throw new SecurityException(
+                    "Conflict of interest: a GN cannot review a case they submitted as a family member.");
+        }
+        if (actingGN.getNicNo() != null
+                && actingGN.getNicNo().equals(this.deceased.getNic())) {
+            throw new SecurityException(
+                    "Conflict of interest: a GN cannot review a case involving their own death.");
         }
     }
 }
