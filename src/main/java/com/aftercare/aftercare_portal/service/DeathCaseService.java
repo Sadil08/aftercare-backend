@@ -8,6 +8,7 @@ import com.aftercare.aftercare_portal.dto.CreateCaseRequest;
 import com.aftercare.aftercare_portal.dto.GnActionRequest;
 import com.aftercare.aftercare_portal.dto.IssueB12Request;
 import com.aftercare.aftercare_portal.dto.IssueB24Request;
+import com.aftercare.aftercare_portal.entity.CaseAuditLog;
 import com.aftercare.aftercare_portal.entity.DeathCase;
 import com.aftercare.aftercare_portal.entity.Deceased;
 import com.aftercare.aftercare_portal.entity.Sector;
@@ -18,10 +19,12 @@ import com.aftercare.aftercare_portal.entity.document.FormCR2;
 import com.aftercare.aftercare_portal.entity.document.FormCR2FamilyInfo;
 import com.aftercare.aftercare_portal.enums.DeathCaseStatus;
 import com.aftercare.aftercare_portal.enums.Role;
+import com.aftercare.aftercare_portal.repository.CaseAuditLogRepository;
 import com.aftercare.aftercare_portal.repository.DeathCaseRepository;
 import com.aftercare.aftercare_portal.repository.DeceasedRepository;
 import com.aftercare.aftercare_portal.repository.SectorRepository;
 import com.aftercare.aftercare_portal.repository.UserRepository;
+import org.springframework.web.util.HtmlUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -56,10 +59,11 @@ public class DeathCaseService {
     private final HashService hashService;
     private final ObjectMapper objectMapper;
     private final Validator validator;
+    private final CaseAuditLogRepository auditLogRepository;
 
     public DeathCaseService(DeathCaseRepository deathCaseRepository, DeceasedRepository deceasedRepository,
             SectorRepository sectorRepository, UserRepository userRepository, HashService hashService,
-            ObjectMapper objectMapper, Validator validator) {
+            ObjectMapper objectMapper, Validator validator, CaseAuditLogRepository auditLogRepository) {
         this.deathCaseRepository = deathCaseRepository;
         this.deceasedRepository = deceasedRepository;
         this.sectorRepository = sectorRepository;
@@ -67,6 +71,7 @@ public class DeathCaseService {
         this.hashService = hashService;
         this.objectMapper = objectMapper;
         this.validator = validator;
+        this.auditLogRepository = auditLogRepository;
     }
 
     @Transactional
@@ -111,6 +116,7 @@ public class DeathCaseService {
         }
 
         deathCase = deathCaseRepository.save(deathCase);
+        audit(deathCase, "CREATE_CASE", applicant, null, deathCase.getStatus());
         return mapToResponse(deathCase, applicant);
     }
 
@@ -119,6 +125,7 @@ public class DeathCaseService {
         DeathCase deathCase = getCaseById(caseId);
 
         String action = request.action().trim().toUpperCase();
+        DeathCaseStatus before = deathCase.getStatus();
         switch (action) {
             case "APPROVE" -> deathCase.gnApprove(actingGN);
             case "REQUEST_MEDICAL" -> deathCase.gnRequestMedical(actingGN);
@@ -127,6 +134,7 @@ public class DeathCaseService {
         }
 
         deathCase = deathCaseRepository.save(deathCase);
+        audit(deathCase, "GN_" + action, actingGN, before, deathCase.getStatus());
         return mapToResponse(deathCase, actingGN);
     }
 
@@ -138,8 +146,10 @@ public class DeathCaseService {
                 .orElseThrow(() -> new EntityNotFoundException(
                         "No doctor found with ID: " + request.doctorId() + ". Please verify the Doctor ID."));
 
+        DeathCaseStatus before = deathCase.getStatus();
         deathCase.familyAssignDoctor(actingFamily, doctor);
         deathCase = deathCaseRepository.save(deathCase);
+        audit(deathCase, "ASSIGN_DOCTOR", actingFamily, before, deathCase.getStatus());
         return mapToResponse(deathCase, actingFamily);
     }
 
@@ -154,6 +164,7 @@ public class DeathCaseService {
                 + request.doctorDesignation() + request.slmcRegistrationNo();
         String hash = hashService.computeHash(payload);
 
+        DeathCaseStatus before = deathCase.getStatus();
         deathCase.issueB12(
                 actingDoctor,
                 hash,
@@ -166,7 +177,7 @@ public class DeathCaseService {
                 request.doctorDesignation(),
                 request.slmcRegistrationNo());
         deathCase = deathCaseRepository.save(deathCase);
-
+        audit(deathCase, "ISSUE_B12", actingDoctor, before, deathCase.getStatus());
         return mapToResponse(deathCase, actingDoctor);
     }
 
@@ -175,19 +186,22 @@ public class DeathCaseService {
         DeathCase deathCase = getCaseById(caseId);
         verifyDocumentIntegrity(deathCase);
 
-        String payload = caseId + actingGN.getNicNo() + toJson(Map.of(
-                "b24GramaDivision", request.b24GramaDivision(),
-                "b24RegistrarDivision", request.b24RegistrarDivision(),
-                "deathDate", request.deathDate().toString(),
-                "b24PlaceOfDeath", request.b24PlaceOfDeath(),
-                "b24FullName", request.b24FullName(),
-                "b24CauseOfDeath", request.b24CauseOfDeath(),
-                "b24InformantName", request.b24InformantName(),
-                "b24InformantAddress", request.b24InformantAddress(),
-                "b24SignDate", request.b24SignDate().toString(),
-                "b24GNSignature", request.b24GNSignature()));
+        // Use LinkedHashMap so field order is deterministic — required for hash re-verification
+        LinkedHashMap<String, String> b24Fields = new LinkedHashMap<>();
+        b24Fields.put("b24GramaDivision", request.b24GramaDivision());
+        b24Fields.put("b24RegistrarDivision", request.b24RegistrarDivision());
+        b24Fields.put("deathDate", request.deathDate().toString());
+        b24Fields.put("b24PlaceOfDeath", request.b24PlaceOfDeath());
+        b24Fields.put("b24FullName", request.b24FullName());
+        b24Fields.put("b24CauseOfDeath", request.b24CauseOfDeath());
+        b24Fields.put("b24InformantName", request.b24InformantName());
+        b24Fields.put("b24InformantAddress", request.b24InformantAddress());
+        b24Fields.put("b24SignDate", request.b24SignDate().toString());
+        b24Fields.put("b24GNSignature", request.b24GNSignature());
+        String payload = caseId + actingGN.getNicNo() + toJson(b24Fields);
         String hash = hashService.computeHash(payload);
 
+        DeathCaseStatus before = deathCase.getStatus();
         deathCase.issueB24(
                 actingGN,
                 hash,
@@ -211,6 +225,7 @@ public class DeathCaseService {
                 request.b24Confirmed());
 
         deathCase = deathCaseRepository.save(deathCase);
+        audit(deathCase, "ISSUE_B24", actingGN, before, deathCase.getStatus());
         return mapToResponse(deathCase, actingGN);
     }
 
@@ -219,12 +234,14 @@ public class DeathCaseService {
         DeathCase deathCase = getCaseById(caseId);
         verifyDocumentIntegrity(deathCase);
 
-        String serialNumber = generateSerialNumber(deathCase.getSector(), deathCase.getCreatedAt().getYear());
+        String serialNumber = generateSerialNumber(deathCase.getSector(), deathCase.getCreatedAt().getYear(), caseId);
         String payload = caseId + actingRegistrar.getNicNo() + serialNumber;
         String hash = hashService.computeHash(payload);
 
+        DeathCaseStatus before = deathCase.getStatus();
         deathCase.issueCr2(actingRegistrar, hash, serialNumber);
         deathCase = deathCaseRepository.save(deathCase);
+        audit(deathCase, "ISSUE_CR2", actingRegistrar, before, deathCase.getStatus());
 
         // If the deceased person had a portal account, lock it immediately.
         // This covers edge cases like a GN or doctor whose own death was registered.
@@ -280,14 +297,56 @@ public class DeathCaseService {
     }
 
     private void verifyDocumentIntegrity(DeathCase dc) {
-        if (dc.getFormB12() != null && dc.getFormB12().getCryptographicHash() == null) {
-            throw new SecurityException("B-12 document appears tampered");
+        if (dc.getFormCr2FamilyInfo() != null) {
+            FormCR2FamilyInfo info = dc.getFormCr2FamilyInfo();
+            if (info.getCryptographicHash() == null) {
+                throw new SecurityException("CR-2 family declaration integrity check failed.");
+            }
+            String recomputed = hashService.computeHash(
+                    dc.getApplicantFamilyMember().getNicNo() + info.getFamilyReportJson());
+            if (!recomputed.equals(info.getCryptographicHash())) {
+                throw new SecurityException("CR-2 family declaration integrity check failed.");
+            }
         }
-        if (dc.getFormCr2FamilyInfo() != null && dc.getFormCr2FamilyInfo().getCryptographicHash() == null) {
-            throw new SecurityException("CR-2 family information appears tampered");
+
+        if (dc.getFormB12() != null) {
+            FormB12 b12 = dc.getFormB12();
+            if (b12.getCryptographicHash() == null) {
+                throw new SecurityException("B-12 document integrity check failed.");
+            }
+            String antecedentJson = b12.getAntecedentCausesJson() != null
+                    ? b12.getAntecedentCausesJson() : toJson(List.of());
+            String contributoryJson = b12.getContributoryCausesJson() != null
+                    ? b12.getContributoryCausesJson() : toJson(List.of());
+            String recomputed = hashService.computeHash(dc.getId() + b12.getIssuedBy().getNicNo()
+                    + b12.isNaturalDeath() + b12.getIcd10Code() + b12.getImmediateCause()
+                    + antecedentJson + contributoryJson + b12.getDoctorViewedBodyAt()
+                    + b12.getDoctorDesignation() + b12.getSlmcRegistrationNo());
+            if (!recomputed.equals(b12.getCryptographicHash())) {
+                throw new SecurityException("B-12 document integrity check failed.");
+            }
         }
-        if (dc.getFormB24() != null && dc.getFormB24().getCryptographicHash() == null) {
-            throw new SecurityException("B-24 document appears tampered");
+
+        if (dc.getFormB24() != null) {
+            FormB24 b24 = dc.getFormB24();
+            if (b24.getCryptographicHash() == null) {
+                throw new SecurityException("B-24 document integrity check failed.");
+            }
+            LinkedHashMap<String, String> b24Fields = new LinkedHashMap<>();
+            b24Fields.put("b24GramaDivision", b24.getGramaDivision());
+            b24Fields.put("b24RegistrarDivision", b24.getRegistrarDivision());
+            b24Fields.put("deathDate", b24.getDeathDate() != null ? b24.getDeathDate().toString() : "null");
+            b24Fields.put("b24PlaceOfDeath", b24.getPlaceOfDeath());
+            b24Fields.put("b24FullName", b24.getFullName());
+            b24Fields.put("b24CauseOfDeath", b24.getCauseOfDeath());
+            b24Fields.put("b24InformantName", b24.getInformantName());
+            b24Fields.put("b24InformantAddress", b24.getInformantAddress());
+            b24Fields.put("b24SignDate", b24.getSignDate() != null ? b24.getSignDate().toString() : "null");
+            b24Fields.put("b24GNSignature", b24.getGnSignature());
+            String recomputed = hashService.computeHash(dc.getId() + b24.getIssuedBy().getNicNo() + toJson(b24Fields));
+            if (!recomputed.equals(b24.getCryptographicHash())) {
+                throw new SecurityException("B-24 document integrity check failed.");
+            }
         }
     }
 
@@ -744,9 +803,24 @@ public class DeathCaseService {
         return mapped;
     }
 
-    private String generateSerialNumber(Sector sector, int year) {
-        long count = deathCaseRepository.count() + 1;
-        return String.format("B2-%d-%s-%06d", year, sector.getDistrict().substring(0, 3).toUpperCase(), count);
+    private String generateSerialNumber(Sector sector, int year, Long caseId) {
+        return String.format("CR2/%d/%s/%06d", year, sector.getCode().toUpperCase(), caseId);
+    }
+
+    private void audit(DeathCase dc, String action, User actor, DeathCaseStatus from, DeathCaseStatus to) {
+        auditLogRepository.save(CaseAuditLog.builder()
+                .deathCase(dc)
+                .action(action)
+                .performedByUsername(actor.getUsername())
+                .fromStatus(from)
+                .toStatus(to)
+                .performedAt(java.time.LocalDateTime.now())
+                .build());
+    }
+
+    private String sanitize(String value) {
+        if (value == null) return null;
+        return HtmlUtils.htmlEscape(value);
     }
 
     private String authoritativeCause(FormB12 formB12, CanonicalFamilyReport familyReport) {

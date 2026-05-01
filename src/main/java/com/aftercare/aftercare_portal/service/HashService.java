@@ -15,7 +15,7 @@ public class HashService {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             for (String field : fields) {
                 if (field != null) {
-                    digest.update(field.getBytes(StandardCharsets.UTF_8));
+                    digest.update((field + "|").getBytes(StandardCharsets.UTF_8));
                 }
             }
             byte[] hash = digest.digest();

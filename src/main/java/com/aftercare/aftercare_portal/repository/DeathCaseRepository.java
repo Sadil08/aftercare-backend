@@ -36,6 +36,9 @@ public interface DeathCaseRepository extends JpaRepository<DeathCase, Long> {
     // All cases in a sector (for GN dashboard)
     List<DeathCase> findBySector(Sector sector);
 
+    // Certificate verification
+    Optional<DeathCase> findByFormCr2_CertificateSerialNumber(String serialNumber);
+
     // Counts for Notifications
     long countByStatus(DeathCaseStatus status);
     long countByStatusAndSector(DeathCaseStatus status, Sector sector);

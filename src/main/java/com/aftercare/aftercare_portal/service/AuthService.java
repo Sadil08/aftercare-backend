@@ -25,15 +25,18 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
+    private final LoginAttemptService loginAttemptService;
 
     public AuthService(UserRepository userRepository, SectorRepository sectorRepository,
             PasswordEncoder passwordEncoder, JwtUtil jwtUtil,
-            AuthenticationManager authenticationManager) {
+            AuthenticationManager authenticationManager,
+            LoginAttemptService loginAttemptService) {
         this.userRepository = userRepository;
         this.sectorRepository = sectorRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
         this.authenticationManager = authenticationManager;
+        this.loginAttemptService = loginAttemptService;
     }
 
     @Transactional
@@ -96,8 +99,17 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.username(), request.password()));
+        if (loginAttemptService.isBlocked(request.username())) {
+            throw new SecurityException("Too many failed login attempts. Try again in 10 minutes.");
+        }
+
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.username(), request.password()));
+        } catch (Exception e) {
+            loginAttemptService.recordFailure(request.username());
+            throw e;
+        }
 
         User user = userRepository.findByUsername(request.username())
                 .orElseThrow(() -> new IllegalArgumentException("User not found."));
@@ -105,6 +117,8 @@ public class AuthService {
         if (user.isLocked()) {
             throw new SecurityException("Account is locked. Contact administration.");
         }
+
+        loginAttemptService.recordSuccess(request.username());
 
         String sectorCode = user.getSector() != null ? user.getSector().getCode() : null;
         String rolesStr = user.getRoles().stream().map(Enum::name).collect(Collectors.joining(","));
