@@ -46,6 +46,11 @@ public interface DeathCaseRepository extends JpaRepository<DeathCase, Long> {
            "('CR2_ISSUED_CLOSED', 'REJECTED_UNNATURAL_DEATH') AND dc.createdAt < :cutoff")
     List<DeathCase> findStaleCasesOpenBefore(@Param("cutoff") java.time.LocalDateTime cutoff);
 
+    // Concurrent active case count for a family account (excludes terminal states)
+    @Query("SELECT COUNT(dc) FROM DeathCase dc WHERE dc.applicantFamilyMember = :applicant " +
+           "AND dc.status NOT IN ('CR2_ISSUED_CLOSED', 'REJECTED_UNNATURAL_DEATH')")
+    long countActiveCasesByApplicant(@Param("applicant") User applicant);
+
     // Counts for Notifications
     long countByStatus(DeathCaseStatus status);
     long countByStatusAndSector(DeathCaseStatus status, Sector sector);

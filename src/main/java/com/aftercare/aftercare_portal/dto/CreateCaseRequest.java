@@ -17,5 +17,6 @@ public record CreateCaseRequest(
         String sectorCode,
         String address,
         String cr2FormData,
-        String doctorId) {
+        String doctorId,
+        String submissionOtp) {
 }

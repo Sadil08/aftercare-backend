@@ -57,7 +57,8 @@ public class DeathCaseService {
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
     };
 
-    private static final int MAX_DAILY_B12_CERTIFICATIONS = 10;
+    private static final int MAX_DAILY_B12_CERTIFICATIONS  = 10;
+    private static final int MAX_CONCURRENT_CASES          = 3;
 
     private final DeathCaseRepository deathCaseRepository;
     private final DeceasedRepository deceasedRepository;
@@ -69,11 +70,13 @@ public class DeathCaseService {
     private final Validator validator;
     private final CaseAuditLogRepository auditLogRepository;
     private final SlmcRegistryService slmcRegistryService;
+    private final RequestRateLimiter requestRateLimiter;
 
     public DeathCaseService(DeathCaseRepository deathCaseRepository, DeceasedRepository deceasedRepository,
             SectorRepository sectorRepository, UserRepository userRepository, CitizenRepository citizenRepository,
             HashService hashService, ObjectMapper objectMapper, Validator validator,
-            CaseAuditLogRepository auditLogRepository, SlmcRegistryService slmcRegistryService) {
+            CaseAuditLogRepository auditLogRepository, SlmcRegistryService slmcRegistryService,
+            RequestRateLimiter requestRateLimiter) {
         this.deathCaseRepository = deathCaseRepository;
         this.deceasedRepository = deceasedRepository;
         this.sectorRepository = sectorRepository;
@@ -84,12 +87,42 @@ public class DeathCaseService {
         this.validator = validator;
         this.auditLogRepository = auditLogRepository;
         this.slmcRegistryService = slmcRegistryService;
+        this.requestRateLimiter = requestRateLimiter;
     }
 
     @Transactional
     public CaseResponse createCase(User applicant, CreateCaseRequest request) {
         if (!applicant.getRoles().contains(Role.FAMILY)) {
             throw new SecurityException("Only family members can initiate a case.");
+        }
+
+        // Phone must be verified before any case can be submitted
+        if (!applicant.isPhoneVerified()) {
+            throw new SecurityException("Phone number must be verified before submitting a death case. " +
+                    "Use POST /api/v1/auth/send-otp to receive a verification code.");
+        }
+
+        // Per-submission OTP: caller must obtain a fresh OTP via send-otp and include it here
+        if (request.submissionOtp() == null || request.submissionOtp().isBlank()) {
+            throw new SecurityException("A one-time verification code is required to submit a death case. " +
+                    "Call POST /api/v1/auth/send-otp first.");
+        }
+        if (!applicant.verifyOtp(request.submissionOtp())) {
+            throw new SecurityException("Invalid or expired verification code. Request a new one via POST /api/v1/auth/send-otp.");
+        }
+
+        // IP-based rate limit: max 5 case submissions per IP per 10 minutes
+        requestRateLimiter.checkAndRecordIpSubmission(extractClientIp());
+
+        // Per-account daily limit: max 3 new submissions per 24 hours
+        requestRateLimiter.checkAndRecordAccountSubmission(applicant.getUsername());
+
+        // Per-account concurrent limit: max 3 active (non-terminal) cases at a time
+        long activeCases = deathCaseRepository.countActiveCasesByApplicant(applicant);
+        if (activeCases >= MAX_CONCURRENT_CASES) {
+            throw new SecurityException(
+                    "Maximum of " + MAX_CONCURRENT_CASES + " concurrent active cases per account. " +
+                    "Wait for existing cases to be resolved before submitting a new one.");
         }
 
         CanonicalFamilyReport familyReport = resolveCanonicalFamilyReport(request, applicant);

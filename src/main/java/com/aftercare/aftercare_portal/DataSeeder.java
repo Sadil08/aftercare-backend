@@ -108,6 +108,7 @@ public class DataSeeder implements CommandLineRunner {
                 passwordEncoder.encode(rawPassword), phone, nicNo);
         user.grantRole(role); // auto-assigns doctorId if role == DOCTOR
         user.assignSector(sector);
+        user.markPhoneVerified(); // seeded official accounts are pre-verified
         userRepository.save(user);
 
         String doctorInfo = user.getDoctorId() != null ? " | Doctor ID: " + user.getDoctorId() : "";

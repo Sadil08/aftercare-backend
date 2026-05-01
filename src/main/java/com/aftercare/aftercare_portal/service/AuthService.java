@@ -6,6 +6,7 @@ import com.aftercare.aftercare_portal.dto.RegisterRequest;
 import com.aftercare.aftercare_portal.entity.Sector;
 import com.aftercare.aftercare_portal.entity.User;
 import com.aftercare.aftercare_portal.enums.Role;
+import com.aftercare.aftercare_portal.repository.CitizenRepository;
 import com.aftercare.aftercare_portal.repository.SectorRepository;
 import com.aftercare.aftercare_portal.repository.UserRepository;
 import com.aftercare.aftercare_portal.security.JwtUtil;
@@ -22,17 +23,20 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final SectorRepository sectorRepository;
+    private final CitizenRepository citizenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
     private final LoginAttemptService loginAttemptService;
 
     public AuthService(UserRepository userRepository, SectorRepository sectorRepository,
+            CitizenRepository citizenRepository,
             PasswordEncoder passwordEncoder, JwtUtil jwtUtil,
             AuthenticationManager authenticationManager,
             LoginAttemptService loginAttemptService) {
         this.userRepository = userRepository;
         this.sectorRepository = sectorRepository;
+        this.citizenRepository = citizenRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
         this.authenticationManager = authenticationManager;
@@ -46,6 +50,23 @@ public class AuthService {
         }
         if (userRepository.existsByEmail(request.email())) {
             throw new IllegalArgumentException("A user with this email already exists.");
+        }
+
+        // Enforce one account per NIC
+        if (request.nicNo() != null && !request.nicNo().isBlank()
+                && userRepository.existsByNicNo(request.nicNo())) {
+            throw new IllegalArgumentException("An account is already registered for this NIC.");
+        }
+
+        // Validate NIC against the national citizen registry (rejects fake NICs)
+        if (request.nicNo() != null && !request.nicNo().isBlank()) {
+            var citizen = citizenRepository.findByNic(request.nicNo())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "NIC not found in the national registry. Registration is not permitted."));
+            if (!citizen.isAlive()) {
+                throw new IllegalArgumentException(
+                        "This NIC belongs to a deceased person. Registration is not permitted.");
+            }
         }
 
         User user = new User(
@@ -96,6 +117,34 @@ public class AuthService {
                 user.getNicNo(),
                 user.getRoles().stream().map(Enum::name).collect(Collectors.toSet()),
                 user.getDoctorId());
+    }
+
+    @Transactional
+    public String sendOtp(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found."));
+        String otp = user.issueOtp();
+        userRepository.save(user);
+
+        // In production: send SMS via Twilio/etc. to user.getPhone()
+        // For development: log to console so testers can see the code
+        System.out.println("=== OTP for " + username + " (" + user.getPhone() + "): " + otp + " (expires in 5 minutes) ===");
+        return "OTP sent to phone number ending in " + maskPhone(user.getPhone());
+    }
+
+    @Transactional
+    public void verifyPhone(String username, String otpCode) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found."));
+        if (!user.verifyOtp(otpCode)) {
+            throw new SecurityException("Invalid or expired OTP. Request a new code.");
+        }
+        userRepository.save(user);
+    }
+
+    private String maskPhone(String phone) {
+        if (phone == null || phone.length() < 4) return "****";
+        return "****" + phone.substring(phone.length() - 4);
     }
 
     public AuthResponse login(LoginRequest request) {

@@ -12,6 +12,7 @@ import com.aftercare.aftercare_portal.entity.User;
 import com.aftercare.aftercare_portal.enums.Gender;
 import com.aftercare.aftercare_portal.enums.Role;
 import com.aftercare.aftercare_portal.repository.CaseAuditLogRepository;
+import com.aftercare.aftercare_portal.service.RequestRateLimiter;
 import com.aftercare.aftercare_portal.service.SlmcRegistryService;
 import com.aftercare.aftercare_portal.repository.CitizenRepository;
 import com.aftercare.aftercare_portal.repository.DeathCaseRepository;
@@ -69,6 +70,9 @@ class DeathCaseServiceTest {
     @Mock
     private SlmcRegistryService slmcRegistryService;
 
+    @Mock
+    private RequestRateLimiter requestRateLimiter;
+
     private DeathCaseService deathCaseService;
     private final AtomicReference<DeathCase> storedCase = new AtomicReference<>();
 
@@ -92,11 +96,13 @@ class DeathCaseServiceTest {
                 objectMapper,
                 validator,
                 auditLogRepository,
-                slmcRegistryService);
+                slmcRegistryService,
+                requestRateLimiter);
 
         sector = new Sector("KANDY-01", "Kandy Central", "Kandy");
         family = new User("family1", "family@test.com", "Family Member", "hash", "0711111111", "901234567V");
         family.grantRole(Role.FAMILY);
+        family.markPhoneVerified();
 
         gn = new User("gn1", "gn@test.com", "GN Officer", "hash", "0712222222", "801234567V");
         gn.grantRole(Role.GRAMA_NILADHARI);
@@ -119,6 +125,7 @@ class DeathCaseServiceTest {
         lenient().when(hashService.computeHash(anyString())).thenReturn("hash");
         lenient().when(sectorRepository.findByCode("KANDY-01")).thenReturn(Optional.of(sector));
         lenient().when(deceasedRepository.existsByNic(anyString())).thenReturn(false);
+        lenient().when(deathCaseRepository.countActiveCasesByApplicant(any(User.class))).thenReturn(0L);
         lenient().when(userRepository.findByDoctorId(doctor.getDoctorId())).thenReturn(Optional.of(doctor));
         lenient().when(deathCaseRepository.save(any(DeathCase.class))).thenAnswer(invocation -> {
             DeathCase deathCase = invocation.getArgument(0);
@@ -140,7 +147,8 @@ class DeathCaseServiceTest {
     @Test
     void createCaseValidatesCanonicalModel() {
         CanonicalFamilyReport invalidReport = canonicalReport(null, null, null);
-        CreateCaseRequest request = new CreateCaseRequest(invalidReport, null, null, null, null, null, null, null, null, null);
+        String otp = family.issueOtp();
+        CreateCaseRequest request = new CreateCaseRequest(invalidReport, null, null, null, null, null, null, null, null, null, otp);
 
         IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
                 () -> deathCaseService.createCase(family, request));
@@ -244,7 +252,8 @@ class DeathCaseServiceTest {
     }
 
     private CreateCaseRequest requestFor(CanonicalFamilyReport report) {
-        return new CreateCaseRequest(report, null, null, null, null, null, null, null, null, null);
+        String otp = family.issueOtp();
+        return new CreateCaseRequest(report, null, null, null, null, null, null, null, null, null, otp);
     }
 
     private CanonicalFamilyReport canonicalReport(String doctorId, LocalDate dateOfBirth, Integer ageYears) {
