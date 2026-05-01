@@ -16,4 +16,6 @@ public interface CemeteryBookingRepository extends JpaRepository<CemeteryBooking
     Optional<CemeteryBooking> findFirstByDeathCaseIdOrderByIdDesc(Long deathCaseId);
     Optional<CemeteryBooking> findFirstByDeathCaseIdAndFamilyMemberIdOrderByIdDesc(Long deathCaseId, Long familyMemberId);
     boolean existsByDeathCaseIdAndFamilyMemberIdAndStatusIn(Long deathCaseId, Long familyMemberId, List<CemeteryBooking.BookingStatus> statuses);
+
+    void deleteByDeathCaseId(Long deathCaseId);
 }
