@@ -22,6 +22,7 @@ import com.aftercare.aftercare_portal.repository.DeathCaseRepository;
 import com.aftercare.aftercare_portal.repository.DeceasedRepository;
 import com.aftercare.aftercare_portal.repository.SectorRepository;
 import com.aftercare.aftercare_portal.repository.UserRepository;
+import com.aftercare.aftercare_portal.repository.CemeteryBookingRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -53,17 +54,20 @@ public class DeathCaseService {
     private final DeceasedRepository deceasedRepository;
     private final SectorRepository sectorRepository;
     private final UserRepository userRepository;
+    private final CemeteryBookingRepository cemeteryBookingRepository;
     private final HashService hashService;
     private final ObjectMapper objectMapper;
     private final Validator validator;
 
     public DeathCaseService(DeathCaseRepository deathCaseRepository, DeceasedRepository deceasedRepository,
-            SectorRepository sectorRepository, UserRepository userRepository, HashService hashService,
-            ObjectMapper objectMapper, Validator validator) {
+            SectorRepository sectorRepository, UserRepository userRepository,
+            CemeteryBookingRepository cemeteryBookingRepository,
+            HashService hashService, ObjectMapper objectMapper, Validator validator) {
         this.deathCaseRepository = deathCaseRepository;
         this.deceasedRepository = deceasedRepository;
         this.sectorRepository = sectorRepository;
         this.userRepository = userRepository;
+        this.cemeteryBookingRepository = cemeteryBookingRepository;
         this.hashService = hashService;
         this.objectMapper = objectMapper;
         this.validator = validator;
@@ -256,6 +260,30 @@ public class DeathCaseService {
                 .orElseThrow(
                         () -> new EntityNotFoundException("No active death case found for family NIC: " + familyNic));
         return mapToResponse(dc, dc.getApplicantFamilyMember());
+    }
+
+    @Transactional
+    public void deleteCase(Long caseId, User user) {
+        DeathCase dc = getCaseById(caseId);
+
+        // 1. Authorization: Only the original applicant can delete the case
+        if (!dc.getApplicantFamilyMember().getId().equals(user.getId())) {
+            throw new SecurityException("Unauthorized: You can only delete your own cases.");
+        }
+
+        // 2. State Protection: Prevent deletion of finalized or rejected cases
+        if (dc.getStatus() == DeathCaseStatus.CR2_ISSUED_CLOSED) {
+            throw new IllegalStateException("Cannot delete a finalized case where a CR-2 has already been issued.");
+        }
+        if (dc.getStatus() == DeathCaseStatus.REJECTED_UNNATURAL_DEATH) {
+            throw new IllegalStateException("Cannot delete a case that has been officially rejected by a doctor.");
+        }
+
+        // 3. Cleanup: Manual cleanup for non-cascaded relations
+        cemeteryBookingRepository.deleteByDeathCaseId(caseId);
+
+        // 4. Delete the case (Cascades handle deceased, forms, etc.)
+        deathCaseRepository.delete(dc);
     }
 
     private DeathCase getCaseById(Long caseId) {
