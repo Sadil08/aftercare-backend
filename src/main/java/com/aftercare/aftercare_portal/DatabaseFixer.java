@@ -15,14 +15,23 @@ public class DatabaseFixer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
+        fixConstraint("user_roles", "user_roles_role_check", null);
+        fixConstraint("death_cases", "death_cases_status_check",
+                "status IN ('PENDING_GN_REVIEW','PENDING_DOCTOR_ASSIGNMENT','PENDING_B12_MEDICAL'," +
+                "'PENDING_REGISTRAR_REVIEW','CR2_ISSUED_CLOSED','REJECTED_UNNATURAL_DEATH')");
+    }
+
+    private void fixConstraint(String table, String constraint, String checkExpression) {
         try {
-            jdbcTemplate.execute("ALTER TABLE user_roles DROP CONSTRAINT IF EXISTS user_roles_role_check;");
-            System.out.println("============== DROPPED user_roles_role_check CONSTRAINT ==============");
-            
-            jdbcTemplate.execute("ALTER TABLE death_cases DROP CONSTRAINT IF EXISTS death_cases_status_check;");
-            System.out.println("============== DROPPED death_cases_status_check CONSTRAINT ==============");
+            jdbcTemplate.execute("ALTER TABLE " + table + " DROP CONSTRAINT IF EXISTS " + constraint + ";");
+            System.out.println("=== DROPPED " + constraint + " ===");
+            if (checkExpression != null) {
+                jdbcTemplate.execute("ALTER TABLE " + table + " ADD CONSTRAINT " + constraint +
+                        " CHECK (" + checkExpression + ");");
+                System.out.println("=== ADDED " + constraint + " with all valid values ===");
+            }
         } catch (Exception e) {
-            System.out.println("============== FAILED TO DROP CONSTRAINT: " + e.getMessage() + " ==============");
+            System.out.println("=== FAILED to fix " + constraint + ": " + e.getMessage() + " ===");
         }
     }
 }
