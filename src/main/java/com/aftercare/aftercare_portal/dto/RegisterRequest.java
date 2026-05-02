@@ -22,6 +22,8 @@ public record RegisterRequest(
         String phone,
         String nicNo,
 
+        String district,
+
         String role,
 
         String sectorCode) {

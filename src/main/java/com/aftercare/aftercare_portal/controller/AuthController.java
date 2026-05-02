@@ -83,6 +83,39 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> body) {
+        String username = body.get("username");
+        if (username == null || username.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "username is required"));
+        }
+        try {
+            String message = authService.initiatePasswordReset(username);
+            return ResponseEntity.ok(Map.of("message", message));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> body) {
+        String username = body.get("username");
+        String otp = body.get("otp");
+        String newPassword = body.get("newPassword");
+        if (username == null || username.isBlank() || otp == null || otp.isBlank()
+                || newPassword == null || newPassword.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "username, otp, and newPassword are required"));
+        }
+        try {
+            authService.resetPassword(username, otp, newPassword);
+            return ResponseEntity.ok(Map.of("message", "Password reset successfully. You can now log in."));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", e.getMessage()));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
+        }
+    }
+
     @PostMapping("/verify-phone")
     public ResponseEntity<?> verifyPhone(@RequestBody Map<String, String> body) {
         String username = body.get("username");

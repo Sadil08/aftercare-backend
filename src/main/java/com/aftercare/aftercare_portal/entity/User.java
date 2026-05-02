@@ -135,4 +135,16 @@ public class User {
         this.pendingOtp = null;
         this.otpExpiresAt = null;
     }
+
+    public void updatePassword(String encodedPassword) {
+        this.passwordHash = encodedPassword;
+    }
+
+    public void updatePhone(String newPhone) {
+        this.phone = newPhone;
+    }
+
+    public void updateEmail(String newEmail) {
+        this.email = newEmail;
+    }
 }

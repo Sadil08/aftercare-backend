@@ -67,6 +67,22 @@ public class AuthService {
                 throw new IllegalArgumentException(
                         "This NIC belongs to a deceased person. Registration is not permitted.");
             }
+
+            // Full name must match the registry record (prevents registering under someone else's NIC)
+            if (request.fullName() == null || !request.fullName().trim().equalsIgnoreCase(citizen.getFullName().trim())) {
+                throw new IllegalArgumentException(
+                        "The full name entered does not match the national registry for this NIC.");
+            }
+
+            // District must match the registry record
+            if (request.district() == null || request.district().isBlank()) {
+                throw new IllegalArgumentException("District is required for registration.");
+            }
+            if (citizen.getAddressDistrict() == null
+                    || !request.district().trim().equalsIgnoreCase(citizen.getAddressDistrict().trim())) {
+                throw new IllegalArgumentException(
+                        "The district entered does not match the national registry for this NIC.");
+            }
         }
 
         User user = new User(
@@ -159,6 +175,60 @@ public class AuthService {
         userRepository.save(user);
         // Clear any login-attempt block accumulated while the account was unverified
         loginAttemptService.recordSuccess(username);
+    }
+
+    @Transactional
+    public String initiatePasswordReset(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("No account found for that username."));
+        String otp = user.issueOtp();
+        userRepository.save(user);
+        System.out.println("=== Password-reset OTP for " + username
+                + " (" + maskPhone(user.getPhone()) + "): " + otp + " (expires in 5 minutes) ===");
+        return "Password-reset OTP sent to phone number ending in " + maskPhone(user.getPhone());
+    }
+
+    @Transactional
+    public void resetPassword(String username, String otpCode, String newPassword) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("No account found for that username."));
+        if (!user.verifyOtp(otpCode)) {
+            throw new SecurityException("Invalid or expired OTP. Request a new code.");
+        }
+        user.updatePassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        loginAttemptService.recordSuccess(username);
+    }
+
+    @Transactional
+    public void changePhone(String username, String oldPhone, String newPhone, String password) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found."));
+        if (!passwordEncoder.matches(password, user.getPasswordHash())) {
+            throw new SecurityException("Incorrect password.");
+        }
+        if (!oldPhone.trim().equals(user.getPhone() == null ? "" : user.getPhone().trim())) {
+            throw new IllegalArgumentException("Old phone number does not match.");
+        }
+        user.updatePhone(newPhone.trim());
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public void changeEmail(String username, String oldEmail, String newEmail, String password) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found."));
+        if (!passwordEncoder.matches(password, user.getPasswordHash())) {
+            throw new SecurityException("Incorrect password.");
+        }
+        if (!oldEmail.trim().equalsIgnoreCase(user.getEmail() == null ? "" : user.getEmail().trim())) {
+            throw new IllegalArgumentException("Old email does not match.");
+        }
+        if (userRepository.existsByEmail(newEmail.trim())) {
+            throw new IllegalArgumentException("That email address is already in use.");
+        }
+        user.updateEmail(newEmail.trim());
+        userRepository.save(user);
     }
 
     private String maskPhone(String phone) {
