@@ -122,6 +122,15 @@ public class DeathCaseController {
         }
     }
 
+    @DeleteMapping("/{caseId}")
+    public ResponseEntity<Void> deleteCase(
+            @PathVariable(name = "caseId") Long caseId,
+            Authentication auth) {
+        User user = getUser(auth);
+        deathCaseService.deleteCase(caseId, user);
+        return ResponseEntity.noContent().build();
+    }
+
     private User getUser(Authentication auth) {
         String username = auth.getName();
         return userRepository.findByUsername(username)
