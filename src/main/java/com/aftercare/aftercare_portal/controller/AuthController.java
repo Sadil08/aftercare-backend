@@ -47,6 +47,18 @@ public class AuthController {
         }
     }
 
+    /** DEV ONLY — returns the pending OTP so the frontend can display it as a mock SMS popup. Remove in production. */
+    @GetMapping("/dev/otp/{username}")
+    public ResponseEntity<?> getDevOtp(@PathVariable String username) {
+        try {
+            String otp = authService.getDevOtp(username);
+            if (otp == null) return ResponseEntity.ok(Map.of("otp", "", "message", "No pending OTP"));
+            return ResponseEntity.ok(Map.of("otp", otp));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", e.getMessage()));
+        }
+    }
+
     @PostMapping("/send-otp")
     public ResponseEntity<?> sendOtp(@RequestBody Map<String, String> body) {
         String username = body.get("username");

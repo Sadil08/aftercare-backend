@@ -21,12 +21,28 @@ public class Citizen {
     @Column(nullable = false)
     private String fullName;
 
+    private String fullNameSinhala;
+
     private LocalDate dateOfBirth;
 
     @Enumerated(EnumType.STRING)
     private Gender gender;
 
+    private String nationality;
+
+    private String ethnicity;
+
     private String address;
+
+    private String addressDistrict;
+
+    private String addressDivision;
+
+    private String addressGnDivision;
+
+    private String occupation;
+
+    private String maritalStatus;
 
     @Column(nullable = false)
     private boolean alive = true;
@@ -37,6 +53,28 @@ public class Citizen {
         this.dateOfBirth = dateOfBirth;
         this.gender = gender;
         this.address = address;
+        this.alive = true;
+    }
+
+    public Citizen(String nic, String fullName, String fullNameSinhala,
+                   LocalDate dateOfBirth, Gender gender,
+                   String nationality, String ethnicity,
+                   String address, String addressDistrict,
+                   String addressDivision, String addressGnDivision,
+                   String occupation, String maritalStatus) {
+        this.nic = nic;
+        this.fullName = fullName;
+        this.fullNameSinhala = fullNameSinhala;
+        this.dateOfBirth = dateOfBirth;
+        this.gender = gender;
+        this.nationality = nationality;
+        this.ethnicity = ethnicity;
+        this.address = address;
+        this.addressDistrict = addressDistrict;
+        this.addressDivision = addressDivision;
+        this.addressGnDivision = addressGnDivision;
+        this.occupation = occupation;
+        this.maritalStatus = maritalStatus;
         this.alive = true;
     }
 

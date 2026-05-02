@@ -139,6 +139,16 @@ public class AuthService {
         return "OTP sent to phone number ending in " + maskPhone(user.getPhone());
     }
 
+    /** DEV ONLY — returns the pending OTP for a user so the frontend can display it as a mock SMS. */
+    public String getDevOtp(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found."));
+        if (user.getPendingOtp() == null) {
+            return null;
+        }
+        return user.getPendingOtp();
+    }
+
     @Transactional
     public void verifyPhone(String username, String otpCode) {
         User user = userRepository.findByUsername(username)
