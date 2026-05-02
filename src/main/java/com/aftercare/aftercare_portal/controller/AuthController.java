@@ -7,6 +7,7 @@ import com.aftercare.aftercare_portal.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -41,6 +42,11 @@ public class AuthController {
         try {
             AuthResponse response = authService.login(request);
             return ResponseEntity.ok(response);
+        } catch (DisabledException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "Account not yet verified. Please complete phone OTP verification first.",
+                                 "requiresOtp", true,
+                                 "username", request.username()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("message", "Invalid username or password"));

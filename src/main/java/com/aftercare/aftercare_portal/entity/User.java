@@ -50,7 +50,7 @@ public class User {
     private Sector sector;
 
     @Column(nullable = false)
-    private boolean enabled = true;
+    private boolean enabled = false;
 
     @Column(nullable = false)
     private boolean locked = false;
@@ -125,11 +125,13 @@ public class User {
         this.pendingOtp = null;
         this.otpExpiresAt = null;
         this.phoneVerified = true;
+        this.enabled = true;
         return true;
     }
 
     public void markPhoneVerified() {
         this.phoneVerified = true;
+        this.enabled = true;
         this.pendingOtp = null;
         this.otpExpiresAt = null;
     }
