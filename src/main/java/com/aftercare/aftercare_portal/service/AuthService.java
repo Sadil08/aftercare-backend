@@ -157,6 +157,8 @@ public class AuthService {
             throw new SecurityException("Invalid or expired OTP. Request a new code.");
         }
         userRepository.save(user);
+        // Clear any login-attempt block accumulated while the account was unverified
+        loginAttemptService.recordSuccess(username);
     }
 
     private String maskPhone(String phone) {
@@ -172,6 +174,9 @@ public class AuthService {
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.username(), request.password()));
+        } catch (org.springframework.security.authentication.DisabledException e) {
+            // Don't penalise as a failed attempt — this is an unverified account, not wrong credentials
+            throw e;
         } catch (Exception e) {
             loginAttemptService.recordFailure(request.username());
             throw e;

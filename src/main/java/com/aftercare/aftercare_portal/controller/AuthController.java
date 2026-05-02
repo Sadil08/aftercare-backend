@@ -47,6 +47,10 @@ public class AuthController {
                     .body(Map.of("message", "Account not yet verified. Please complete phone OTP verification first.",
                                  "requiresOtp", true,
                                  "username", request.username()));
+        } catch (SecurityException e) {
+            // Rate-limit block or account-lock — surface the actual reason
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("message", "Invalid username or password"));
