@@ -102,7 +102,13 @@ public class AuthService {
             user.assignSector(sector);
         }
 
+        // Issue OTP immediately so the user receives it on the same request
+        String otp = user.issueOtp();
         userRepository.save(user);
+
+        // In production: send SMS via Twilio/etc. to user.getPhone()
+        System.out.println("=== Registration OTP for " + user.getUsername()
+                + " (" + maskPhone(user.getPhone()) + "): " + otp + " (expires in 5 minutes) ===");
 
         String sectorCode = user.getSector() != null ? user.getSector().getCode() : null;
         String rolesStr = user.getRoles().stream().map(Enum::name).collect(Collectors.joining(","));
@@ -116,7 +122,8 @@ public class AuthService {
                 user.getFullName(),
                 user.getNicNo(),
                 user.getRoles().stream().map(Enum::name).collect(Collectors.toSet()),
-                user.getDoctorId());
+                user.getDoctorId(),
+                user.isPhoneVerified());
     }
 
     @Transactional
@@ -181,6 +188,7 @@ public class AuthService {
                 user.getFullName(),
                 user.getNicNo(),
                 user.getRoles().stream().map(Enum::name).collect(Collectors.toSet()),
-                user.getDoctorId());
+                user.getDoctorId(),
+                user.isPhoneVerified());
     }
 }
